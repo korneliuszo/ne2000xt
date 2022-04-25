@@ -199,7 +199,7 @@ typedef struct {
 
 typedef unsigned short  bx_bool;
 
-#define BX_VIRTUAL_PORTS 1 /* normal output to Bochs ports */
+#define BX_VIRTUAL_PORTS 0 /* normal output to Bochs ports */
 #define BX_DEBUG_SERIAL  0 /* output to COM1 */
 
 #define BIOS_PRINTF_HALT     1

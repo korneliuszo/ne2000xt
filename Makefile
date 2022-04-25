@@ -13,6 +13,6 @@ all: default
 	wasm -0 -wx -ms -fo$@ $<
 
 
-optionrom.bin: main.obj init.obj link.lnk
+optionrom.bin: main.obj init.obj print.obj link.lnk
 	wlink name $@ @link.lnk
 	./checksum.py $@

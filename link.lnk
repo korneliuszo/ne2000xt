@@ -10,4 +10,5 @@ libpath %WATCOM%/lib286
 libpath %WATCOM%/lib286/dos
 file init.obj
 file main.obj
+file print.obj
 library clibs.lib
