@@ -67,10 +67,6 @@
 #define DEBUG_APM       0
 #define DEBUG_POST      0
 
-#define FP_OFF(p)   ((unsigned)(p))
-#define FP_SEG(p)   ((unsigned)((unsigned long)(void __far*)(p) >> 16))
-#define MK_FP(s,o)  (((unsigned short)(s)):>((void __near *)(o)))
-
 typedef struct {
     union {
         struct {
