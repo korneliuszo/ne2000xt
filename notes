@@ -1,0 +1,3 @@
+gdb -ix gdb.txt -ex 'target remote 127.0.0.1:1234' -ex 'b *0x10060'
+
+qemu-system-i386 -option-rom optionrom.bin -chardev stdio,id=seabios -device isa-debugcon,iobase=0x402,chardev=seabios -s  -nic none
