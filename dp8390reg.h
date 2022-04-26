@@ -524,24 +524,6 @@
  */
 #define ED_RSR_DFR	0x80
 
-/*
- * receive ring descriptor
- *
- * The National Semiconductor DS8390 Network interface controller uses the
- * following receive ring headers.  The way this works is that the memory on
- * the interface card is chopped up into 256 bytes blocks.  A contiguous
- * portion of those blocks are marked for receive packets by setting start and
- * end block #'s in the NIC.  For each packet that is put into the receive
- * ring, one of these headers (4 bytes each) is tacked onto the front.   The
- * first byte is a copy of the receiver status register at the time the packet
- * was received.
- */
-struct dp8390_ring	{
-	u_int8_t	rsr;		/* receiver status */
-	u_int8_t	next_packet;	/* pointer to next packet */
-	u_int16_t	count;		/* bytes in packet (length + 4) */
-};
-
 /* Some drivers prefer to use byte-constants to get at this structure.  */
 #define ED_RING_RSR		0	/* receiver status */
 #define ED_RING_NEXT_PACKET	1	/* pointer to next packet */
