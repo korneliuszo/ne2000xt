@@ -31,7 +31,7 @@ void delay_spin(uint16_t time)
 {
 	int16_t timeout = time + get_ctr();
 	int16_t now = get_ctr();
-	char ch = 0;
+	static char ch = 0;
 	char tbl[] = {'/','|','\\','-'};
 	do {
 		dch(tbl[ch++]);
