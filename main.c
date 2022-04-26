@@ -4,10 +4,13 @@ int __cdecl start();
 #include <stdint.h>
 #include "biosint.h"
 #include "inlines.h"
+#include "delay.h"
 
 int start()
 {
 	bios_printf(BIOS_PRINTF_ALL,"NE2000XT Monitor\n");
+
+	delay_init();
 
 	uint16_t io_base;
 	uint8_t id0,id1;
@@ -24,6 +27,9 @@ int start()
 	id1 = inb(io_base+0x0B);
 
 	bios_printf(BIOS_PRINTF_ALL,"Found card at:0x%x ID:0x%x\n",io_base,id0 | (id1<<8));
+
+	delay_spin(PIT_MSC(1000));
+
 
 	return 0;
 }

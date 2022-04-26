@@ -11,4 +11,6 @@ libpath %WATCOM%/lib286/dos
 file init.obj
 file main.obj
 file print.obj
+file delay_c.obj
+file delay.obj
 library clibs.lib
