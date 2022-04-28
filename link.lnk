@@ -13,4 +13,5 @@ file main.obj
 file print.obj
 file delay_c.obj
 file delay.obj
+file eth.obj
 library clibs.lib
