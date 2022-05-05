@@ -115,8 +115,8 @@ void eth_initialize()
 	eth_outb(ED_P0_PSTART, 8192 >> ED_PAGE_SHIFT);
 	eth_outb(ED_P0_PSTOP, 16384 >> ED_PAGE_SHIFT);
 
-	const uint8_t test_pattern[32] = "THIS is A memory TEST pattern";
-	uint8_t test_buffer[32];
+	static const uint8_t test_pattern[32] = "THIS is A memory TEST pattern";
+	static uint8_t test_buffer[32];
 
 	writemem(test_pattern, 8192, sizeof(test_pattern));
 	readmem(test_buffer,8192,sizeof(test_buffer));
@@ -147,7 +147,7 @@ void eth_initialize()
 	}
 	eth_outb(ED_P0_ISR, 0xff);
 
-	uint8_t romdata[16];
+	static uint8_t romdata[16];
 	readmem(romdata, 0, sizeof(romdata));
 
 	for (i = 0; i < 6; i++)
