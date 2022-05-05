@@ -20,6 +20,7 @@ uint16_t get_ctr()
 	return ret;
 }
 
+extern void dch( char );
 #pragma aux dch = \
 	"mov ah, 0Ah" \
 	"mov bx, 00h" \

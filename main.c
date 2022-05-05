@@ -19,19 +19,19 @@ int start()
 
 	while(1)
 	{
-		udp_conn conn = {
-				{0xff,0xff,0xff,0xff,0xff,0xff},
-				0xffffffff,
-				100,
-				55555,
-		};
-		start_send_udp(&conn, 4);
-		eth_outdma('B');
-		eth_outdma('e');
-		eth_outdma('e');
-		eth_outdma('p');
-		fin_send_udp(4);
-		delay_spin(PIT_MSC(1000));
+		send_dhcp_discover();
+		for(int i=0;i<PIT_MSC(1000);i++)
+		{
+			if(dhcp_poll())
+				goto iprecv;
+			delay_spin(1);
+		}
+	}
+	iprecv:
+	bios_printf(BIOS_PRINTF_ALL,"IP %d.%d.%d.%d\n",
+			(uint8_t)(local_ip>>24),(uint8_t)(local_ip>>16),(uint8_t)(local_ip>>8),(uint8_t)(local_ip>>0));
+	while(1)
+	{
 	}
 
 	return 0;
