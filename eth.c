@@ -4,6 +4,7 @@
 #include "inlines.h"
 #include "delay.h"
 #include <string.h>
+#include <stdbool.h>
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
@@ -208,13 +209,24 @@ void eth_initialize()
 
 uint32_t local_ip = 0;
 
+bool first_tx = true;
+
 void start_send_udp(udp_conn *conn, uint16_t len)
 {
 	uint16_t eth_len = len + 14 + 20 + 8;
 	uint16_t ip_len = len + 20 + 8;
 	uint16_t udp_len = len + 8;
 
-	//TODO: check PTX
+	while(!first_tx) {
+		if ((eth_inb(ED_P0_ISR) & ED_ISR_PTX) ==
+		    ED_ISR_PTX) {
+			/* Ack the reset bit. */
+			eth_outb(ED_P0_ISR, ED_ISR_PTX);
+			break;
+		}
+	}
+
+	first_tx = false;
 
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
 	eth_outb(ED_P0_ISR, ED_ISR_RDC);
