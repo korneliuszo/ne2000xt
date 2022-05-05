@@ -2,6 +2,7 @@
 #define ETH_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "inlines.h"
 
 void eth_detect();
@@ -62,5 +63,12 @@ typedef struct
 
 void start_send_udp(udp_conn *conn, uint16_t len);
 void fin_send_udp(uint16_t len);
+void send_dhcp_discover();
+extern uint8_t rx_pkt[1522];
+extern uint16_t rx_len;
+bool start_recv();
+uint8_t* decode_udp(uint16_t local_port, uint16_t *len);
+void fill_udp_conn(udp_conn * conn);
+bool dhcp_poll();
 
 #endif /* ETH_H_ */

@@ -30,7 +30,7 @@ void writemem(const uint8_t *src, uint16_t dst, size_t len)
 
 	int maxwait = 100;
 	while (((eth_inb(ED_P0_ISR) & ED_ISR_RDC) !=
-	    ED_ISR_RDC) && --maxwait)
+			ED_ISR_RDC) && --maxwait)
 		delay_spin(1);
 }
 
@@ -71,7 +71,8 @@ void eth_detect()
 
 uint16_t buff_start,buff_size;
 
-uint16_t tx_page_start;
+uint8_t tx_page_start;
+uint8_t rx_page_start,rx_page_stop;
 
 void eth_initialize()
 {
@@ -87,7 +88,7 @@ void eth_initialize()
 
 	tmp = eth_inb(ED_P0_CR);
 	if ((tmp & (ED_CR_RD2 | ED_CR_TXP | ED_CR_STA | ED_CR_STP)) !=
-		    (ED_CR_RD2 | ED_CR_STP))
+			(ED_CR_RD2 | ED_CR_STP))
 		bios_printf(BIOS_PRINTF_DEBHALT,"Card error1\n");
 
 	tmp = eth_inb(ED_P0_ISR);
@@ -98,7 +99,7 @@ void eth_initialize()
 
 	for (i = 0; i < 100; i++) {
 		if ((eth_inb(ED_P0_ISR) & ED_ISR_RST) ==
-		    ED_ISR_RST) {
+				ED_ISR_RST) {
 			/* Ack the reset bit. */
 			eth_outb(ED_P0_ISR, ED_ISR_RST);
 			break;
@@ -168,8 +169,8 @@ void eth_initialize()
 	eth_outb(ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
 
 	tx_page_start = buff_start >> ED_PAGE_SHIFT;
-	uint16_t rx_page_start = tx_page_start + ED_TXBUF_SIZE;
-	uint16_t rx_page_stop = tx_page_start + (buff_size >> ED_PAGE_SHIFT);
+	rx_page_start = tx_page_start + ED_TXBUF_SIZE;
+	rx_page_stop = tx_page_start + (buff_size >> ED_PAGE_SHIFT);
 	//uint16_t mem_ring = buff_start + (ED_TXBUF_SIZE << ED_PAGE_SHIFT);
 	//uint16_t mem_end = buff_start + buff_size;
 
@@ -180,7 +181,7 @@ void eth_initialize()
 
 	eth_outb(ED_P0_TCR, ED_TCR_LB0);
 
-	eth_outb(ED_P0_BNRY, rx_page_start);
+	eth_outb(ED_P0_BNRY, rx_page_stop-1);
 	eth_outb(ED_P0_PSTART, rx_page_start);
 	eth_outb(ED_P0_PSTOP, rx_page_stop);
 
@@ -191,12 +192,12 @@ void eth_initialize()
 
 	for (i = 0; i < 6; ++i)
 		eth_outb(ED_P1_PAR0 + i,
-		    mac_address[i]);
+				mac_address[i]);
 
 	for (i = 0; i < 8; i++)
 		eth_outb(ED_P1_MAR0 + i, 0);
 
-	eth_outb(ED_P1_CURR, rx_page_start + 1);
+	eth_outb(ED_P1_CURR, rx_page_start);
 
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STP);
 
@@ -219,7 +220,7 @@ void start_send_udp(udp_conn *conn, uint16_t len)
 
 	while(!first_tx) {
 		if ((eth_inb(ED_P0_ISR) & ED_ISR_PTX) ==
-		    ED_ISR_PTX) {
+				ED_ISR_PTX) {
 			/* Ack the reset bit. */
 			eth_outb(ED_P0_ISR, ED_ISR_PTX);
 			break;
@@ -259,10 +260,12 @@ void start_send_udp(udp_conn *conn, uint16_t len)
 	ip_hdr.words[8]=conn->remote_ip>>16;
 	ip_hdr.words[9]=conn->remote_ip;
 
-	uint16_t chksum =0;
+	uint32_t chksum =0;
 	for(uint16_t i=0;i<10;i++)
-		chksum+=ip_hdr.words[i];
-	ip_hdr.words[5]=chksum; //checksum
+		chksum+=swap_16(ip_hdr.words[i]);
+	chksum=(chksum&0xffff)+(chksum>>16);
+	uint16_t chksumf=chksum&0xffff+(chksum>>16);
+	ip_hdr.words[5]=swap_16(chksumf^0xffff); //checksum
 	for(uint16_t i=0;i<20;i++)
 		eth_outdma(ip_hdr.bytes[i]);
 
@@ -282,7 +285,7 @@ void fin_send_udp(uint16_t len)
 	eth_len = MAX(eth_len, 64-4);
 
 	while (((eth_inb(ED_P0_ISR) & ED_ISR_RDC) !=
-	    ED_ISR_RDC));
+			ED_ISR_RDC));
 
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
 	eth_outb(ED_P0_TPSR,tx_page_start);
@@ -290,4 +293,220 @@ void fin_send_udp(uint16_t len)
 	eth_outb(ED_P0_TBCR1,eth_len>>8);
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_TXP | ED_CR_STA);
 
+}
+
+void send_dhcp_packet(uint8_t type, uint32_t serverip)
+{
+	udp_conn conn = {
+			{0xff,0xff,0xff,0xff,0xff,0xff},
+			0xffffffff,
+			67,
+			68,
+	};
+	uint16_t len = serverip ? (256) : 250;
+	start_send_udp(&conn,280);
+
+	eth_outdma(0x01); //type
+	eth_outdma(0x01); //hwtype
+	eth_outdma(0x06); //hwlen
+	eth_outdma(0x00); //hops
+	eth_outdma(0xBA); //transid
+	eth_outdma(0xDB);
+	eth_outdma(0xEE);
+	eth_outdma(0xEF);
+	eth_outdma(0x00); //seconds
+	eth_outdma(0x00);
+	eth_outdma(0x00); //flags
+	eth_outdma(0x00);
+	eth_outdma(local_ip>>24); //ciaddr
+	eth_outdma(local_ip>>16);
+	eth_outdma(local_ip>>8);
+	eth_outdma(local_ip>>0);
+	eth_outdma(0x00); //yiaddr
+	eth_outdma(0x00);
+	eth_outdma(0x00);
+	eth_outdma(0x00);
+	eth_outdma(0x00); //siaddr
+	eth_outdma(0x00);
+	eth_outdma(0x00);
+	eth_outdma(0x00);
+	eth_outdma(0x00); //giaddr
+	eth_outdma(0x00);
+	eth_outdma(0x00);
+	eth_outdma(0x00);
+	for(uint16_t i=0;i<6;i++) //chaddr
+		eth_outdma(mac_address[i]);
+	for(uint16_t i=6;i<16;i++) //chaddr
+		eth_outdma(0x00);
+	for(uint16_t i=0;i<64+128;i++) //sname+file
+		eth_outdma(0x00);
+	eth_outdma(0x63); //cookie
+	eth_outdma(0x82);
+	eth_outdma(0x53);
+	eth_outdma(0x63);
+	eth_outdma(0x35); //message_type
+	eth_outdma(0x01);
+	eth_outdma(type); //DISCOVER
+	eth_outdma(0x0c); // hostname
+	eth_outdma(4);
+	eth_outdma('X');
+	eth_outdma('T');
+	eth_outdma('N');
+	eth_outdma('E');
+	if (serverip)
+	{
+		eth_outdma(0x36); // sel server
+		eth_outdma(4);
+		eth_outdma(serverip>>24);
+		eth_outdma(serverip>>16);
+		eth_outdma(serverip>>8);
+		eth_outdma(serverip>>0);
+	}
+	eth_outdma(0xff); //end
+
+	for(int i= len;i<280;i++)
+		eth_outdma(0x00); //pad
+
+	fin_send_udp(280);
+}
+
+bool offered = false;
+
+void send_dhcp_discover()
+{
+	offered=false;
+	send_dhcp_packet(0x01,0);
+}
+
+uint8_t rx_pkt[1522];
+uint16_t rx_len;
+
+bool start_recv()
+{
+	bool ret;
+	if((eth_inb(ED_P0_ISR) & ED_ISR_PRX) != ED_ISR_PRX)
+		return false;
+	uint8_t next = eth_inb(ED_P0_BNRY) +1;
+	if (next >= rx_page_stop) next = rx_page_start;
+	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_1 | ED_CR_STA);
+	uint8_t curr = eth_inb(ED_P1_CURR);
+	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
+	if (curr >= rx_page_stop) curr = rx_page_start;
+	if (curr == next) return false;
+
+	eth_outb(ED_P0_RBCR0, 4);
+	eth_outb(ED_P0_RBCR1, 0);
+	eth_outb(ED_P0_RSAR0, 0);
+	eth_outb(ED_P0_RSAR1, next);
+	eth_outb(ED_P0_CR,ED_CR_RD0 | ED_CR_PAGE_0 | ED_CR_STA);
+	uint8_t status=eth_indma();
+	uint8_t next_pkt=eth_indma();
+	uint8_t len_lsb = eth_indma();
+	uint8_t len_msb = eth_indma();
+	uint16_t len = (len_msb << 8) | len_lsb;
+	if((status & ED_RSR_PRX == 0) || len < 64 || len > 1522)
+	{
+		ret = false;
+	}
+	else
+	{
+		uint16_t pktoff = next << 8 | 4;
+		uint8_t* p = rx_pkt;
+		len -= 4;
+		rx_len = len;
+		uint16_t frag = (rx_page_stop << 8) - pktoff;
+		if(len > frag)
+		{
+			readmem(p, pktoff, frag);
+			pktoff = rx_page_start << 8;
+			p+=frag;
+			len-=frag;
+		}
+		readmem(p, pktoff, len);
+		ret=true;
+	}
+	if (next_pkt == rx_page_start)
+		next_pkt=rx_page_stop;
+	eth_outb(ED_P0_BNRY, next_pkt-1);
+	return ret;
+}
+
+uint8_t* decode_udp(uint16_t local_port, uint16_t *len)
+{
+	if (rx_pkt[12] != 0x08 || rx_pkt[13] != 0x00) // is IP
+		return NULL;
+	if (rx_pkt[14] != 0x45) // no fancy options
+		return NULL;
+	if (rx_pkt[0x17] != 0x11) // udp
+		return NULL;
+	if (rx_pkt[0x24] != local_port>>8)
+		return NULL;
+	if (rx_pkt[0x25] != local_port)
+		return NULL;
+	*len = rx_pkt[0x27]<<8|rx_pkt[0x28];
+	return &rx_pkt[0x2a];
+}
+
+void fill_udp_conn(udp_conn * conn)
+{
+	conn->local_port = (rx_pkt[0x24]<<8) | rx_pkt[0x25];
+	conn->remote_port = (rx_pkt[0x22]<<8) | rx_pkt[0x23];
+	conn->remote_ip = ((uint32_t)rx_pkt[0x1A]<<24)|((uint32_t)rx_pkt[0x1B]<<16)|(rx_pkt[0x1C]<<8)|(rx_pkt[0x1D]<<0);
+	for(uint16_t i=0;i<6;i++)
+		conn->remote_mac[i]=rx_pkt[6+i];
+}
+
+bool dhcp_poll()
+{
+	if(start_recv())
+	{
+		uint8_t* udp_pkt;
+		uint16_t udp_len;
+		if((udp_pkt=decode_udp(68,&udp_len)))
+		{
+			if(udp_pkt[0] != 0x02)
+				return false;
+			if(udp_pkt[0xEC] != 0x63)
+				return false;
+			if(udp_pkt[0xED] != 0x82)
+				return false;
+			if(udp_pkt[0xEE] != 0x53)
+				return false;
+			if(udp_pkt[0xEF] != 0x63)
+				return false;
+			uint16_t off=0xF0;
+			uint8_t msg_type = 0;
+			while(!msg_type)
+			{
+				switch(udp_pkt[off])
+				{
+				case 0xff:
+					return false;
+				case 0x35:
+					msg_type=udp_pkt[off+2];
+					break;
+				default:
+					off+=2+udp_pkt[off+1];
+				}
+				if(off > udp_len)
+					return false;
+			}
+			if(msg_type == 2)
+			{
+				if(!offered)
+				{
+					offered=true;
+					udp_conn conn;
+					fill_udp_conn(&conn);
+					local_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
+					send_dhcp_packet(3, conn.remote_ip);
+				}
+			}
+			if(msg_type == 5)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
