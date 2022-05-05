@@ -19,7 +19,7 @@ int start()
 
 	while(1)
 	{
-		udp_conn conn = {
+		static udp_conn conn = {
 				{0xff,0xff,0xff,0xff,0xff,0xff},
 				0xffffffff,
 				100,
