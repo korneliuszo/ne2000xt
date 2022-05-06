@@ -32,6 +32,10 @@ int start()
 			(uint8_t)(local_ip>>24),(uint8_t)(local_ip>>16),(uint8_t)(local_ip>>8),(uint8_t)(local_ip>>0));
 	while(1)
 	{
+		if(start_recv())
+		{
+			if(process_arp()){};
+		}
 	}
 
 	return 0;

@@ -514,3 +514,80 @@ bool dhcp_poll()
 	}
 	return false;
 }
+
+bool process_arp()
+{
+
+	if (rx_pkt[12] != 0x08 || rx_pkt[13] != 0x06) // is ARP
+		return false;
+	if (rx_pkt[0x14] != 0x00 || rx_pkt[0x15] != 0x01) // is request
+		return false;
+	if (rx_pkt[0x26] != (uint8_t)(local_ip>>24)) // to us?
+		return false;
+	if (rx_pkt[0x27] != (uint8_t)(local_ip>>16)) // to us?
+		return false;
+	if (rx_pkt[0x28] != (uint8_t)(local_ip>>8)) // to us?
+		return false;
+	if (rx_pkt[0x29] != (uint8_t)(local_ip>>0)) // to us?
+		return false;
+
+
+	//reply
+
+	while(!first_tx) {
+		if ((eth_inb(ED_P0_ISR) & ED_ISR_PTX) ==
+				ED_ISR_PTX) {
+			/* Ack the reset bit. */
+			eth_outb(ED_P0_ISR, ED_ISR_PTX);
+			break;
+		}
+	}
+
+	first_tx = false;
+
+	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
+	eth_outb(ED_P0_ISR, ED_ISR_RDC);
+	eth_outb(ED_P0_RBCR0, 42);
+	eth_outb(ED_P0_RBCR1, 00);
+	eth_outb(ED_P0_RSAR0, buff_start); // hidden assumption that tx buff is
+	eth_outb(ED_P0_RSAR1, buff_start>>8); // on start of memory
+	eth_outb(ED_P0_CR,ED_CR_RD1 | ED_CR_PAGE_0 | ED_CR_STA);
+
+	for(uint16_t i=0;i<6;i++)
+		eth_outdma(rx_pkt[i+6]);
+	for(uint16_t i=0;i<6;i++)
+		eth_outdma(mac_address[i]);
+	eth_outdma(0x08);
+	eth_outdma(0x06); //ARP
+	eth_outdma(0x00);
+	eth_outdma(0x01); //proto Eth
+	eth_outdma(0x08);
+	eth_outdma(0x00); //proto ip
+	eth_outdma(0x06); //hwsize
+	eth_outdma(0x04); //ptsize
+	eth_outdma(0x00);
+	eth_outdma(0x02); //reply
+	for(uint16_t i=0;i<6;i++)
+		eth_outdma(mac_address[i]);
+	eth_outdma(local_ip>>24); //localip
+	eth_outdma(local_ip>>16);
+	eth_outdma(local_ip>>8);
+	eth_outdma(local_ip>>0);
+	for(uint16_t i=0;i<6;i++)
+		eth_outdma(rx_pkt[i+6]);
+	eth_outdma(rx_pkt[0x1c]); //targetip
+	eth_outdma(rx_pkt[0x1d]);
+	eth_outdma(rx_pkt[0x1e]);
+	eth_outdma(rx_pkt[0x1f]);
+
+	while (((eth_inb(ED_P0_ISR) & ED_ISR_RDC) !=
+			ED_ISR_RDC));
+
+	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
+	eth_outb(ED_P0_TPSR,tx_page_start);
+	eth_outb(ED_P0_TBCR0,60);
+	eth_outb(ED_P0_TBCR1,0);
+	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_TXP | ED_CR_STA);
+
+	return true;
+}

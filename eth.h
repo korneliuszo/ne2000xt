@@ -70,5 +70,6 @@ bool start_recv();
 uint8_t* decode_udp(uint16_t local_port, uint16_t *len);
 void fill_udp_conn(udp_conn * conn);
 bool dhcp_poll();
+bool process_arp();
 
 #endif /* ETH_H_ */
