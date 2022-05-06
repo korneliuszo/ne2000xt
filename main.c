@@ -34,7 +34,27 @@ int start()
 	{
 		if(start_recv())
 		{
-			if(process_arp()){};
+			uint16_t len;
+			uint8_t *udp_pkt;
+			if((udp_pkt = decode_udp(5555,&len)))
+			{
+				udp_conn conn;
+				fill_udp_conn(&conn);
+				switch(udp_pkt[0])
+				{
+				case 0: //ping
+				{
+					start_send_udp(&conn, len-1);
+					for(int i=1;i<len;i++)
+						eth_outdma(udp_pkt[i]);
+					fin_send_udp(len-1);
+					break;
+				}
+				default:
+					break;
+				}
+			}
+			else if(process_arp()){};
 		}
 	}
 
