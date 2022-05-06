@@ -255,10 +255,10 @@ void start_send_udp(udp_conn *conn, uint16_t len)
 	ip_hdr.words[3]=0x0000; //Flags
 	ip_hdr.words[4]=0x11fa;
 	ip_hdr.words[5]=0x0000; //checksum
-	ip_hdr.words[6]=local_ip>>16;
-	ip_hdr.words[7]=local_ip;
-	ip_hdr.words[8]=conn->remote_ip>>16;
-	ip_hdr.words[9]=conn->remote_ip;
+	ip_hdr.words[6]=swap_16(local_ip>>16);
+	ip_hdr.words[7]=swap_16(local_ip);
+	ip_hdr.words[8]=swap_16(conn->remote_ip>>16);
+	ip_hdr.words[9]=swap_16(conn->remote_ip);
 
 	uint32_t chksum =0;
 	for(uint16_t i=0;i<10;i++)
@@ -446,7 +446,7 @@ uint8_t* decode_udp(uint16_t local_port, uint16_t *len)
 		return NULL;
 	if (rx_pkt[0x25] != (uint8_t)local_port)
 		return NULL;
-	*len = rx_pkt[0x27]<<8|rx_pkt[0x28];
+	*len = ((rx_pkt[0x26]<<8)|rx_pkt[0x27])-8;
 	return &rx_pkt[0x2a];
 }
 
