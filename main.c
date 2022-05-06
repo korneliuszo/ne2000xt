@@ -20,7 +20,7 @@ int start()
 	while(1)
 	{
 		send_dhcp_discover();
-		for(int i=0;i<PIT_MSC(1000);i++)
+		for(int i=0;i<PIT_MSC(5000);i++)
 		{
 			if(dhcp_poll())
 				goto iprecv;

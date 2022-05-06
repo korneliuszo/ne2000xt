@@ -295,6 +295,8 @@ void fin_send_udp(uint16_t len)
 
 }
 
+uint32_t assigned_ip;
+
 void send_dhcp_packet(uint8_t type, uint32_t serverip)
 {
 	udp_conn conn = {
@@ -318,10 +320,10 @@ void send_dhcp_packet(uint8_t type, uint32_t serverip)
 	eth_outdma(0x00);
 	eth_outdma(0x00); //flags
 	eth_outdma(0x00);
-	eth_outdma(local_ip>>24); //ciaddr
-	eth_outdma(local_ip>>16);
-	eth_outdma(local_ip>>8);
-	eth_outdma(local_ip>>0);
+	eth_outdma(assigned_ip>>24); //ciaddr
+	eth_outdma(assigned_ip>>16);
+	eth_outdma(assigned_ip>>8);
+	eth_outdma(assigned_ip>>0);
 	eth_outdma(0x00); //yiaddr
 	eth_outdma(0x00);
 	eth_outdma(0x00);
@@ -375,6 +377,7 @@ bool offered = false;
 void send_dhcp_discover()
 {
 	offered=false;
+	assigned_ip=0;
 	send_dhcp_packet(0x01,0);
 }
 
@@ -498,12 +501,13 @@ bool dhcp_poll()
 					offered=true;
 					udp_conn conn;
 					fill_udp_conn(&conn);
-					local_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
+					assigned_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
 					send_dhcp_packet(3, conn.remote_ip);
 				}
 			}
 			if(msg_type == 5)
 			{
+				local_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
 				return true;
 			}
 		}
