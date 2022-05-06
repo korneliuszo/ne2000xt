@@ -444,7 +444,7 @@ uint8_t* decode_udp(uint16_t local_port, uint16_t *len)
 		return NULL;
 	if (rx_pkt[0x24] != local_port>>8)
 		return NULL;
-	if (rx_pkt[0x25] != local_port)
+	if (rx_pkt[0x25] != (uint8_t)local_port)
 		return NULL;
 	*len = rx_pkt[0x27]<<8|rx_pkt[0x28];
 	return &rx_pkt[0x2a];
