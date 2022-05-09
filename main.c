@@ -70,7 +70,7 @@ int start()
 					fin_send_udp(1);
 					break;
 				}
-				case 4: //putmem
+				case 3: //putmem
 				{
 			        __segment               seg;
 			        char __based( void ) * segptr;
@@ -82,14 +82,14 @@ int start()
 					fin_send_udp(0);
 					break;
 				}
-				case 5: //getmem
+				case 4: //getmem
 				{
 			        __segment               seg;
 			        char __based( void ) * segptr;
 					seg = udp_pkt[1] | (udp_pkt[2]<<8);
 					segptr =(char __based(void) *)( udp_pkt[3] | (udp_pkt[4]<<8));
 					uint16_t datalen;
-					datalen = udp_pkt[1] | (udp_pkt[2]<<8);
+					datalen = udp_pkt[5] | (udp_pkt[6]<<8);
 					start_send_udp(&conn, datalen);
 					prepare_dma();
 					while(datalen--) //TODO: make some inline asm
@@ -100,7 +100,7 @@ int start()
 					fin_send_udp(datalen);
 					break;
 				}
-				case 6: //call x86
+				case 5: //call x86
 				{
 					uint8_t irq = udp_pkt[1];
 				    union REGS  r;
@@ -122,7 +122,7 @@ int start()
 				    s.es = udp_pkt[18] | (udp_pkt[19]<<8);
 
 				    int86x(irq,&r,&r,&s);
-					start_send_udp(&conn, 12);
+					start_send_udp(&conn, 14);
 					prepare_dma();
 					eth_outdma(r.h.al);
 					eth_outdma(r.h.ah);
@@ -136,7 +136,9 @@ int start()
 					eth_outdma((uint8_t)(r.w.di>>8));
 					eth_outdma((uint8_t)r.w.si);
 					eth_outdma((uint8_t)(r.w.si>>8));
-					fin_send_udp(12);
+					eth_outdma((uint8_t)(r.w.cflag));
+					eth_outdma((uint8_t)(r.w.cflag>>8));
+					fin_send_udp(14);
 					break;
 				}
 				default:
