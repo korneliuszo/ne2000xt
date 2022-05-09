@@ -37,17 +37,10 @@ static inline uint8_t eth_inb(uint16_t port)
 }
 
 
-static inline void eth_outdma(uint8_t val)
-{
-	eth_barrier();
-	outb(io_dma,val);
-}
-
-static inline uint8_t eth_indma()
-{
-	eth_barrier();
-	return inb(io_dma);
-}
+#define prepare_dma() uint16_t io_dma_local = io_dma
+#define eth_outdma(val) do { \
+	eth_barrier(); \
+	outb(io_dma_local,val);} while(0)
 
 extern uint8_t mac_address[6]; //big_endian!!
 

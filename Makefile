@@ -7,7 +7,7 @@ default: optionrom.bin
 all: default
 
 %.obj: %.c delay.h inlines.h biosint.h dp8390reg.h eth.h
-	wcc -0 -wx -s -oas -hd -d2 -ms -za99 -we -fo$@ $<
+	wcc -0 -wx -s -ox -hd -d0 -ms -za99 -we  -fo$@ $<
 
 %.obj: %.S 
 	wasm -0 -wx -ms -fo$@ $<

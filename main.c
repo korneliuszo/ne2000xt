@@ -45,6 +45,7 @@ int start()
 				case 0: //ping
 				{
 					start_send_udp(&conn, len-1);
+					prepare_dma();
 					for(int i=1;i<len;i++)
 						eth_outdma(udp_pkt[i]);
 					fin_send_udp(len-1);
@@ -64,6 +65,7 @@ int start()
 					uint16_t port;
 					port = udp_pkt[1] | (udp_pkt[2]<<8);
 					start_send_udp(&conn, 1);
+					prepare_dma();
 					eth_outdma((uint8_t)inb(port));
 					fin_send_udp(1);
 					break;
@@ -89,6 +91,7 @@ int start()
 					uint16_t datalen;
 					datalen = udp_pkt[1] | (udp_pkt[2]<<8);
 					start_send_udp(&conn, datalen);
+					prepare_dma();
 					while(datalen--) //TODO: make some inline asm
 					{
 						eth_outdma(*(seg:>segptr));
@@ -120,6 +123,7 @@ int start()
 
 				    int86x(irq,&r,&r,&s);
 					start_send_udp(&conn, 12);
+					prepare_dma();
 					eth_outdma(r.h.al);
 					eth_outdma(r.h.ah);
 					eth_outdma(r.h.bl);

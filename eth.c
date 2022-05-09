@@ -23,9 +23,11 @@ void writemem(const uint8_t *src, uint16_t dst, size_t len)
 	eth_outb(ED_P0_RSAR1, dst>>8);
 	eth_outb(ED_P0_CR,ED_CR_RD1 | ED_CR_PAGE_0 | ED_CR_STA);
 
+	prepare_dma();
 	for(uint16_t i=0;i<len;i++)
 	{
-		eth_outdma(src[i]);
+		eth_barrier();
+		outb(io_dma_local,src[i]);
 	}
 
 	int maxwait = 100;
@@ -44,8 +46,13 @@ void readmem(uint8_t *src, uint16_t dst, size_t len)
 	eth_outb(ED_P0_RSAR1, dst>>8);
 	eth_outb(ED_P0_CR,ED_CR_RD0 | ED_CR_PAGE_0 | ED_CR_STA);
 
+	prepare_dma();
+
 	for(uint16_t i=0;i<len;i++)
-		src[i]=eth_indma();
+	{
+		eth_barrier();
+		src[i]=inp(io_dma_local);
+	}
 }
 
 
@@ -237,6 +244,7 @@ void start_send_udp(udp_conn *conn, uint16_t len)
 	eth_outb(ED_P0_RSAR1, buff_start>>8); // on start of memory
 	eth_outb(ED_P0_CR,ED_CR_RD1 | ED_CR_PAGE_0 | ED_CR_STA);
 
+	prepare_dma();
 	for(uint16_t i=0;i<6;i++)
 		eth_outdma(conn->remote_mac[i]);
 	for(uint16_t i=0;i<6;i++)
@@ -307,7 +315,7 @@ void send_dhcp_packet(uint8_t type, uint32_t serverip)
 	};
 	uint16_t len = serverip ? (256) : 250;
 	start_send_udp(&conn,280);
-
+	prepare_dma();
 	eth_outdma(0x01); //type
 	eth_outdma(0x01); //hwtype
 	eth_outdma(0x06); //hwlen
@@ -402,10 +410,16 @@ bool start_recv()
 	eth_outb(ED_P0_RSAR0, 0);
 	eth_outb(ED_P0_RSAR1, next);
 	eth_outb(ED_P0_CR,ED_CR_RD0 | ED_CR_PAGE_0 | ED_CR_STA);
-	uint8_t status=eth_indma();
-	uint8_t next_pkt=eth_indma();
-	uint8_t len_lsb = eth_indma();
-	uint8_t len_msb = eth_indma();
+	prepare_dma();
+
+	eth_barrier();
+	uint8_t status=inp(io_dma_local);
+	eth_barrier();
+	uint8_t next_pkt=inp(io_dma_local);
+	eth_barrier();
+	uint8_t len_lsb = inp(io_dma_local);
+	eth_barrier();
+	uint8_t len_msb = inp(io_dma_local);
 	uint16_t len = (len_msb << 8) | len_lsb;
 	if((status & ED_RSR_PRX == 0) || len < 64 || len > 1522)
 	{
@@ -552,6 +566,8 @@ bool process_arp()
 	eth_outb(ED_P0_RSAR0, buff_start); // hidden assumption that tx buff is
 	eth_outb(ED_P0_RSAR1, buff_start>>8); // on start of memory
 	eth_outb(ED_P0_CR,ED_CR_RD1 | ED_CR_PAGE_0 | ED_CR_STA);
+
+	prepare_dma();
 
 	for(uint16_t i=0;i<6;i++)
 		eth_outdma(rx_pkt[i+6]);
