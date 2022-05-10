@@ -8,7 +8,7 @@ class monitor():
     def __init__(self,ip):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.s.connect((ip,5555))
-        self.s.settimeout(2)
+        self.s.settimeout(5)
     def msgout(self,payload):
         self.s.send(payload)
     def msg(self,payload):
