@@ -23,7 +23,7 @@ class monitor():
         [self.putmem_page(seg,addr+i,data[i:i+1024]) for i in range(0, len(data), 1024)]
         return
     def getmem_page(self,seg,addr,l):
-        return self.conn.msg(struct.pack("<BHHH",4,seg,addr, l))
+        return self.msg(struct.pack("<BHHH",4,seg,addr, l))
     def getmem(self,seg,addr,l):
         return b"".join([self.getmem_page(seg,addr+i,min(1024,l-i)) for i in range(0, l, 1024)])
     def emptyregs(self):

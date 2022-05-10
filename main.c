@@ -91,8 +91,9 @@ int start()
 					uint16_t datalen;
 					datalen = udp_pkt[5] | (udp_pkt[6]<<8);
 					start_send_udp(&conn, datalen);
+					uint16_t cnt=datalen;
 					prepare_dma();
-					while(datalen--) //TODO: make some inline asm
+					while(cnt--) //TODO: make some inline asm
 					{
 						eth_outdma(*(seg:>segptr));
 						segptr++;
