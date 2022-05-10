@@ -16,6 +16,12 @@ class monitor():
         return self.s.recv(1522)
     def ping(self,data):
         return self.msg(bytes([0])+data)
+    def outb(self,port,val):
+        self.msg(struct.pack("<BHB",1,port,val))
+        return
+    def inb(self,port):
+        r=self.msg(struct.pack("<BH",2,port))
+        return r[0]
     def putmem_page(self,seg,addr,data):
         self.msg(struct.pack("<BHH",3,seg,addr)+data)
         return
