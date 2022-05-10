@@ -2,6 +2,7 @@
 
 import socket
 import struct
+import copy
 
 class monitor():
     def __init__(self,ip):
@@ -26,9 +27,9 @@ class monitor():
     def getmem(self,seg,addr,l):
         return b"".join([self.getmem_page(seg,addr+i,min(1024,l-i)) for i in range(0, l, 1024)])
     def emptyregs(self):
-        return {"ax":0,"bx":0,"cx":0,"dx":0,
+        return copy.copy({"ax":0,"bx":0,"cx":0,"dx":0,
                 "si":0,"di":0,"fl":0,
-                "ds":0,"es":0}
+                "ds":0,"es":0})
     def irq(self,irq,regs):
         cmd = bytes([5]) + struct.pack("<BHHHHHHHHH",
                 irq,
