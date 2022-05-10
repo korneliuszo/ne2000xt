@@ -58,18 +58,27 @@ void readmem(uint8_t *src, uint16_t dst, size_t len)
 
 void eth_detect()
 {
-	uint8_t id0,id1;
-
 	for(io_base=0x200;io_base<0x400;io_base+=0x20)
 	{
-		id0 = inb(io_base+0x0A);
-		if(id0 == 0x50)
-			break;
+		uint8_t reg0 = inb(io_base);
+		if(reg0 == 0xff)
+			continue;
+		outb(io_base+ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STP);
+		inb(io_base + ED_P0_CNTR0);
+		if(inb(io_base + ED_P0_CNTR0) != 0)
+		{
+			outb(io_base+ED_P0_CR,reg0);
+			continue;
+		}
+		break;
 	};
 	if(io_base == 0x400)
 	{
 		bios_printf(BIOS_PRINTF_DEBHALT,"Card not found\n");
 	}
+	uint8_t id0,id1;
+
+	id0 = inb(io_base+0x0A);
 	id1 = inb(io_base+0x0B);
 
 	bios_printf(BIOS_PRINTF_ALL,"Found card at:0x%x ID:0x%x\n",io_base,id0 | (id1<<8));
@@ -167,12 +176,13 @@ void eth_initialize()
 
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STP);
 
-	delay_spin(PIT_MSC(5));
+	delay_spin(PIT_MSC(5)); // condition below can allow shorter delay
 
+	/* check on 86box not passing
 	tmp = eth_inb(ED_P0_ISR);
 	if ((tmp & ED_ISR_RST) == ED_ISR_RST)
 		bios_printf(BIOS_PRINTF_DEBHALT,"Card error4\n");
-
+	 */
 	eth_outb(ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
 
 	tx_page_start = buff_start >> ED_PAGE_SHIFT;
