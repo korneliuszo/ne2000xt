@@ -36,6 +36,15 @@ void writemem(const uint8_t *src, uint16_t dst, size_t len)
 		delay_spin(1);
 }
 
+void insw(uint8_t far *buff,size_t len, uint16_t port);
+#pragma aux insw = \
+	"read_loop: " \
+	"in	al,dx" \
+	"stosb" \
+	"loop read_loop" \
+	parm [es di] [cx] [dx] \
+	modify [al cx di];
+
 void readmem(uint8_t *src, uint16_t dst, size_t len)
 {
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
@@ -46,13 +55,7 @@ void readmem(uint8_t *src, uint16_t dst, size_t len)
 	eth_outb(ED_P0_RSAR1, dst>>8);
 	eth_outb(ED_P0_CR,ED_CR_RD0 | ED_CR_PAGE_0 | ED_CR_STA);
 
-	prepare_dma();
-
-	for(uint16_t i=0;i<len;i++)
-	{
-		eth_barrier();
-		src[i]=inp(io_dma_local);
-	}
+	insw(src,len,io_dma);
 }
 
 
