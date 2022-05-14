@@ -13,7 +13,9 @@ install_irq label near
 	push ax
 	mov ax, 0
 	mov ds, ax ; load first page
-	test BYTE PTR ds:[04017h], 004h ; Clears ZF if CTRL is held down
+	mov ah, 0x02
+	int 0x16
+	and al, 0x04
 	jnz SHORT SkipRomInitialization
 
 	mov WORD PTR ds:[019h*4], offset _TEXT:init
