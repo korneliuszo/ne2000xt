@@ -10,18 +10,18 @@ class cga_06():
         r["ax"] = 0x0006
         self.m.irq(0x10,r)
     def resolution(self):
-        return (640,200)   
+        return (640,200) 
     def display(self,i):
         re=bytearray(100*80)
         ro=bytearray(100*80)
+        im = i.tobytes()
         for y in range(200):
-            for x in range(640):
-                if i.getpixel((x,y)):
+            for x in range(0,640,8):
                     if(y%2):
-                        ro[(y//2)*80+x//8]|=1<<(7-x%8)
+                        ro[(y//2)*80+x//8]=(im[y*(640//8)+x//8])
                     else:
-                        re[(y//2)*80+x//8]|=1<<(7-x%8)
-                    
+                        re[(y//2)*80+x//8]=(im[y*(640//8)+x//8])
+            
         self.m.putmem(0xB800,0,re)
         self.m.putmem(0xBA00,0,ro)
     
