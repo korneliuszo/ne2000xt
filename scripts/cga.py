@@ -3,12 +3,7 @@
 import monitor
 from PIL import Image
 import threading
-
-
 from timebudget import timebudget
-timebudget.set_quiet()  # don't show measurements as they happen
-timebudget.report_at_exit()  # Generate report when the program exits
-
 
 class cga_06():
     def __init__(self,ip):
@@ -41,6 +36,8 @@ class cga_06():
 if __name__ == "__main__":
     import sys
     import argparse
+    timebudget.set_quiet()  # don't show measurements as they happen
+    timebudget.report_at_exit()  # Generate report when the program exits
     parser = argparse.ArgumentParser(description='Display image')
     parser.add_argument("--ip",'-i', help='ip')
     parser.add_argument("--image",'-I', help='image')
