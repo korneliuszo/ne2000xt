@@ -22,7 +22,7 @@ if __name__ == "__main__":
     from time import sleep
     
     i = Image.open(args.image)
-    cga = cga_06(monitor.monitor(args.ip))
+    cga = cga_06(args.ip)
     
     i=i.resize(cga.resolution())
     w, h=cga.resolution()

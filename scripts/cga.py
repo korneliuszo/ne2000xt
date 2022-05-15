@@ -2,10 +2,18 @@
 
 import monitor
 from PIL import Image
+import threading
+
+
+from timebudget import timebudget
+timebudget.set_quiet()  # don't show measurements as they happen
+timebudget.report_at_exit()  # Generate report when the program exits
+
 
 class cga_06():
-    def __init__(self,monitor):
-        self.m= monitor
+    def __init__(self,ip):
+        self.m= monitor.monitor(ip)
+        self.m2= monitor.monitor(ip)
         r=self.m.emptyregs()
         r["ax"] = 0x0006
         self.m.irq(0x10,r)
@@ -22,8 +30,13 @@ class cga_06():
                     else:
                         re[(y//2)*80+x//8]=(im[y*(640//8)+x//8])
             
-        self.m.putmem(0xB800,0,re)
-        self.m.putmem(0xBA00,0,ro)
+        with timebudget("io"):
+            t1=threading.Thread(None,self.m.putmem,args=(0xB800,0,re))
+            t2=threading.Thread(None,self.m2.putmem,args=(0xBA00,0,ro))
+            t1.start()
+            t2.start()
+            t1.join()
+            t2.join()
     
 if __name__ == "__main__":
     import sys
@@ -41,7 +54,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     i = Image.open(args.image)
-    cga = cga_06(monitor.monitor(args.ip))
+    cga = cga_06(args.ip)
     
     i=i.resize(cga.resolution())
     i=i.convert("1")
