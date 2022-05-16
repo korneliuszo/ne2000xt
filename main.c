@@ -29,7 +29,7 @@ int start()
 	}
 	iprecv:
 	bios_printf(BIOS_PRINTF_ALL,"IP %d.%d.%d.%d\n",
-			(uint8_t)(local_ip>>24),(uint8_t)(local_ip>>16),(uint8_t)(local_ip>>8),(uint8_t)(local_ip>>0));
+			local_ip[0],local_ip[1],local_ip[2],local_ip[3]);
 	while(1)
 	{
 		if(start_recv())

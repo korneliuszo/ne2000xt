@@ -55,12 +55,12 @@ extern uint8_t next_pkt;
 
 extern uint8_t mac_address[6]; //big_endian!!
 
-extern uint32_t local_ip; // big_endian!!!
+extern uint8_t local_ip[4]; // big_endian!!!
 
 typedef struct
 {
 	uint8_t remote_mac[6];// big_endian!!!
-	uint32_t remote_ip;// big_endian!!!
+	uint8_t remote_ip[4];// big_endian!!!
 	uint16_t remote_port;
 	uint16_t local_port;
 } udp_conn;

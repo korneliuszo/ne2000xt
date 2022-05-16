@@ -232,7 +232,7 @@ void eth_initialize()
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
 }
 
-uint32_t local_ip = 0;
+uint8_t local_ip[4] = {0};
 
 bool first_tx = true;
 
@@ -280,10 +280,14 @@ void start_send_udp(udp_conn *conn, uint16_t len)
 	ip_hdr.words[3]=0x0000; //Flags
 	ip_hdr.words[4]=0x11fa;
 	ip_hdr.words[5]=0x0000; //checksum
-	ip_hdr.words[6]=swap_16(local_ip>>16);
-	ip_hdr.words[7]=swap_16(local_ip);
-	ip_hdr.words[8]=swap_16(conn->remote_ip>>16);
-	ip_hdr.words[9]=swap_16(conn->remote_ip);
+	ip_hdr.bytes[12] = local_ip[0];
+	ip_hdr.bytes[13] = local_ip[1];
+	ip_hdr.bytes[14] = local_ip[2];
+	ip_hdr.bytes[15] = local_ip[3];
+	ip_hdr.bytes[16] = conn->remote_ip[0];
+	ip_hdr.bytes[17] = conn->remote_ip[1];
+	ip_hdr.bytes[18] = conn->remote_ip[2];
+	ip_hdr.bytes[19] = conn->remote_ip[3];
 
 	uint32_t chksum =0;
 	for(uint16_t i=0;i<10;i++)
@@ -320,13 +324,13 @@ void fin_send_udp(uint16_t len)
 
 }
 
-uint32_t assigned_ip;
+uint8_t assigned_ip[4];
 
-void send_dhcp_packet(uint8_t type, uint32_t serverip)
+void send_dhcp_packet(uint8_t type, uint8_t serverip[4])
 {
 	udp_conn conn = {
 			{0xff,0xff,0xff,0xff,0xff,0xff},
-			0xffffffff,
+			{0xff,0xff,0xff,0xff},
 			67,
 			68,
 	};
@@ -345,10 +349,10 @@ void send_dhcp_packet(uint8_t type, uint32_t serverip)
 	eth_outdma(0x00);
 	eth_outdma(0x00); //flags
 	eth_outdma(0x00);
-	eth_outdma(assigned_ip>>24); //ciaddr
-	eth_outdma(assigned_ip>>16);
-	eth_outdma(assigned_ip>>8);
-	eth_outdma(assigned_ip>>0);
+	eth_outdma(assigned_ip[0]); //ciaddr
+	eth_outdma(assigned_ip[1]);
+	eth_outdma(assigned_ip[2]);
+	eth_outdma(assigned_ip[3]);
 	eth_outdma(0x00); //yiaddr
 	eth_outdma(0x00);
 	eth_outdma(0x00);
@@ -384,10 +388,10 @@ void send_dhcp_packet(uint8_t type, uint32_t serverip)
 	{
 		eth_outdma(0x36); // sel server
 		eth_outdma(4);
-		eth_outdma(serverip>>24);
-		eth_outdma(serverip>>16);
-		eth_outdma(serverip>>8);
-		eth_outdma(serverip>>0);
+		eth_outdma(serverip[0]);
+		eth_outdma(serverip[1]);
+		eth_outdma(serverip[2]);
+		eth_outdma(serverip[3]);
 	}
 	eth_outdma(0xff); //end
 
@@ -402,8 +406,11 @@ bool offered = false;
 void send_dhcp_discover()
 {
 	offered=false;
-	assigned_ip=0;
-	send_dhcp_packet(0x01,0);
+	assigned_ip[0]=0;
+	assigned_ip[1]=0;
+	assigned_ip[2]=0;
+	assigned_ip[3]=0;
+	send_dhcp_packet(0x01,NULL);
 }
 
 void read_prepare()
@@ -515,16 +522,11 @@ bool decode_ip_udp(uint16_t local_port, uint16_t *len, udp_conn * conn)
 	eth_indma();
 	eth_indma(); //checksum
 
-	uint8_t remote_ip[4];
-	remote_ip[0]=eth_indma();
-	remote_ip[1]=eth_indma();
-	remote_ip[2]=eth_indma();
-	remote_ip[3]=eth_indma();
+	conn->remote_ip[0]=eth_indma();
+	conn->remote_ip[1]=eth_indma();
+	conn->remote_ip[2]=eth_indma();
+	conn->remote_ip[3]=eth_indma();
 
-	conn->remote_ip = ((uint32_t)remote_ip[0]<<24)|
-			((uint32_t)remote_ip[1]<<16)|
-			(remote_ip[2]<<8)|
-			(remote_ip[3]<<0);
 	eth_indma();
 	eth_indma();
 	eth_indma();
@@ -613,13 +615,21 @@ bool dhcp_poll()
 					if(!offered)
 					{
 						offered=true;
-						assigned_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
+						assigned_ip[0]=udp_pkt[0x10];
+						assigned_ip[1]=udp_pkt[0x11];
+						assigned_ip[2]=udp_pkt[0x12];
+						assigned_ip[3]=udp_pkt[0x13];
+
 						send_dhcp_packet(3, recv_conn.remote_ip);
 					}
 				}
 				if(msg_type == 5)
 				{
-					local_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
+					local_ip[0]=udp_pkt[0x10];
+					local_ip[1]=udp_pkt[0x11];
+					local_ip[2]=udp_pkt[0x12];
+					local_ip[3]=udp_pkt[0x13];
+
 					return true;
 				}
 			}
@@ -666,13 +676,13 @@ void process_arp(udp_conn * conn)
 	eth_indma();
 	eth_indma();//tmac
 
-	if (eth_indma() != (uint8_t)(local_ip>>24)) // to us?
+	if (eth_indma() != (uint8_t)(local_ip[0])) // to us?
 		goto err;
-	if (eth_indma() != (uint8_t)(local_ip>>16)) // to us?
+	if (eth_indma() != (uint8_t)(local_ip[1])) // to us?
 		goto err;
-	if (eth_indma() != (uint8_t)(local_ip>>8)) // to us?
+	if (eth_indma() != (uint8_t)(local_ip[2])) // to us?
 		goto err;
-	if (eth_indma() != (uint8_t)(local_ip>>0)) // to us?
+	if (eth_indma() != (uint8_t)(local_ip[3])) // to us?
 		goto err;
 	recv_end();
 
@@ -713,10 +723,10 @@ void process_arp(udp_conn * conn)
 	eth_outdma(0x02); //reply
 	for(uint16_t i=0;i<6;i++)
 		eth_outdma(mac_address[i]);
-	eth_outdma(local_ip>>24); //localip
-	eth_outdma(local_ip>>16);
-	eth_outdma(local_ip>>8);
-	eth_outdma(local_ip>>0);
+	eth_outdma(local_ip[0]); //localip
+	eth_outdma(local_ip[1]);
+	eth_outdma(local_ip[2]);
+	eth_outdma(local_ip[3]);
 	for(uint16_t i=0;i<6;i++)
 		eth_outdma(conn->remote_mac[i]);
 	eth_outdma(rip[0]); //targetip
