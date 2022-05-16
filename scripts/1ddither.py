@@ -55,4 +55,4 @@ if __name__ == "__main__":
                     quantization_error = old_pixel - new_pixel
                     ia[y, x] = new_pixel
             im = Image.fromarray(np.array(ia,"uint8"),mode="L").convert("1")
-            q.put(im)
+        q.put(im)
