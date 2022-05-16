@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include "inlines.h"
 
 void eth_detect();
@@ -42,6 +43,16 @@ static inline uint8_t eth_inb(uint16_t port)
 	eth_barrier(); \
 	outb(io_dma_local,val);} while(0)
 
+#define eth_indma() \
+	(eth_barrier(), \
+	inb(io_dma_local))
+
+extern uint16_t rx_buff_len, rx_buff2_len;
+extern uint16_t rx_off;
+extern uint16_t rx_pkt_off;
+extern uint8_t next_pkt;
+
+
 extern uint8_t mac_address[6]; //big_endian!!
 
 extern uint32_t local_ip; // big_endian!!!
@@ -57,12 +68,12 @@ typedef struct
 void start_send_udp(udp_conn *conn, uint16_t len);
 void fin_send_udp(uint16_t len);
 void send_dhcp_discover();
-extern uint8_t rx_pkt[1522];
-extern uint16_t rx_len;
 bool start_recv();
-uint8_t* decode_udp(uint16_t local_port, uint16_t *len);
-void fill_udp_conn(udp_conn * conn);
+void recv_end();
+uint16_t process_eth(udp_conn * conn);
+bool decode_ip_udp(uint16_t local_port, uint16_t *len, udp_conn * conn);
+void paste_restpacket(uint8_t far *buff,size_t len);
 bool dhcp_poll();
-bool process_arp();
+void process_arp(udp_conn * conn);
 
 #endif /* ETH_H_ */

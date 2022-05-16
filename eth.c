@@ -13,6 +13,11 @@ uint8_t mac_address[6];
 uint16_t io_base;
 uint16_t io_dma;
 
+uint16_t rx_buff_len, rx_buff2_len;
+uint16_t rx_off;
+uint16_t rx_pkt_off;
+uint8_t next_pkt;
+
 void writemem(const uint8_t *src, uint16_t dst, size_t len)
 {
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
@@ -38,12 +43,12 @@ void writemem(const uint8_t *src, uint16_t dst, size_t len)
 
 void insw(uint8_t far *buff,size_t len, uint16_t port);
 #pragma aux insw = \
-	"read_loop: " \
-	"in	al,dx" \
-	"stosb" \
-	"loop read_loop" \
-	parm [es di] [cx] [dx] \
-	modify [al cx di];
+		"read_loop: " \
+		"in	al,dx" \
+		"stosb" \
+		"loop read_loop" \
+		parm [es di] [cx] [dx] \
+		modify [al cx di];
 
 void readmem(uint8_t *src, uint16_t dst, size_t len)
 {
@@ -57,7 +62,6 @@ void readmem(uint8_t *src, uint16_t dst, size_t len)
 
 	insw(src,len,io_dma);
 }
-
 
 void eth_detect()
 {
@@ -402,8 +406,24 @@ void send_dhcp_discover()
 	send_dhcp_packet(0x01,0);
 }
 
-uint8_t rx_pkt[1522];
-uint16_t rx_len;
+void read_prepare()
+{
+	if (rx_off >= rx_buff_len)
+	{
+		rx_off = 0;
+		rx_pkt_off = rx_page_start << 8;
+		rx_buff_len = rx_buff2_len;
+	}
+	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
+	uint16_t dst = rx_pkt_off;
+	uint16_t len = rx_buff_len;
+	size_t lenr = len + (len&1);
+	eth_outb(ED_P0_RBCR0, lenr);
+	eth_outb(ED_P0_RBCR1, lenr>>8);
+	eth_outb(ED_P0_RSAR0, dst);
+	eth_outb(ED_P0_RSAR1, dst>>8);
+	eth_outb(ED_P0_CR,ED_CR_RD0 | ED_CR_PAGE_0 | ED_CR_STA);
+}
 
 bool start_recv()
 {
@@ -426,13 +446,13 @@ bool start_recv()
 	prepare_dma();
 
 	eth_barrier();
-	uint8_t status=inp(io_dma_local);
+	uint8_t status=eth_indma(io_dma_local);
 	eth_barrier();
-	uint8_t next_pkt=inp(io_dma_local);
+	next_pkt=eth_indma(io_dma_local);
 	eth_barrier();
-	uint8_t len_lsb = inp(io_dma_local);
+	uint8_t len_lsb = eth_indma(io_dma_local);
 	eth_barrier();
-	uint8_t len_msb = inp(io_dma_local);
+	uint8_t len_msb = eth_indma(io_dma_local);
 	uint16_t len = (len_msb << 8) | len_lsb;
 	if((status & ED_RSR_PRX == 0) || len < 64 || len > 1522)
 	{
@@ -440,124 +460,221 @@ bool start_recv()
 	}
 	else
 	{
-		uint16_t pktoff = next << 8 | 4;
-		uint8_t* p = rx_pkt;
+		rx_pkt_off = next << 8 | 4;
 		len -= 4;
-		rx_len = len;
-		uint16_t frag = (rx_page_stop << 8) - pktoff;
+		uint16_t frag = (rx_page_stop << 8) - rx_pkt_off;
 		if(len > frag)
 		{
-			readmem(p, pktoff, frag);
-			pktoff = rx_page_start << 8;
-			p+=frag;
-			len-=frag;
+			rx_buff2_len = len-frag;
+			len = frag;
 		}
-		readmem(p, pktoff, len);
+		rx_buff_len = len;
+		rx_off = 0;
+		read_prepare();
 		ret=true;
 	}
-	if (next_pkt == rx_page_start)
-		next_pkt=rx_page_stop;
-	eth_outb(ED_P0_BNRY, next_pkt-1);
 	return ret;
 }
 
-uint8_t* decode_udp(uint16_t local_port, uint16_t *len)
+void recv_end()
 {
-	if (rx_pkt[12] != 0x08 || rx_pkt[13] != 0x00) // is IP
-		return NULL;
-	if (rx_pkt[14] != 0x45) // no fancy options
-		return NULL;
-	if (rx_pkt[0x17] != 0x11) // udp
-		return NULL;
-	if (rx_pkt[0x24] != local_port>>8)
-		return NULL;
-	if (rx_pkt[0x25] != (uint8_t)local_port)
-		return NULL;
-	*len = ((rx_pkt[0x26]<<8)|rx_pkt[0x27])-8;
-	return &rx_pkt[0x2a];
+	if (next_pkt == rx_page_start)
+		next_pkt=rx_page_stop;
+	eth_outb(ED_P0_BNRY, next_pkt-1);
 }
 
-void fill_udp_conn(udp_conn * conn)
+uint16_t process_eth(udp_conn * conn)
 {
-	conn->local_port = (rx_pkt[0x24]<<8) | rx_pkt[0x25];
-	conn->remote_port = (rx_pkt[0x22]<<8) | rx_pkt[0x23];
-	conn->remote_ip = ((uint32_t)rx_pkt[0x1A]<<24)|((uint32_t)rx_pkt[0x1B]<<16)|(rx_pkt[0x1C]<<8)|(rx_pkt[0x1D]<<0);
-	for(uint16_t i=0;i<6;i++)
-		conn->remote_mac[i]=rx_pkt[6+i];
+	prepare_dma();
+	for(int i=0;i<6;i++)
+	{
+		eth_indma(); // drop eth header
+	}
+	for(int i=0;i<6;i++)
+		conn->remote_mac[i]=eth_indma();
+	uint8_t proto_b = eth_indma();
+	uint8_t proto_l = eth_indma();
+	rx_off += 14;
+	return (proto_b<<8) | proto_l;
+}
+
+
+bool decode_ip_udp(uint16_t local_port, uint16_t *len, udp_conn * conn)
+{
+	//if (rx_pkt[12] != 0x08 || rx_pkt[13] != 0x00) // is IP
+	//	return NULL;
+	prepare_dma();
+	if (eth_indma() != 0x45) // no fancy options
+		goto rx_fail;
+	for(int i=0xF;i<0x17;i++)
+	{
+		eth_indma();
+	}
+	if (eth_indma() != 0x11) // udp
+		goto rx_fail;
+	eth_indma();
+	eth_indma(); //checksum
+
+	uint8_t remote_ip[4];
+	remote_ip[0]=eth_indma();
+	remote_ip[1]=eth_indma();
+	remote_ip[2]=eth_indma();
+	remote_ip[3]=eth_indma();
+
+	conn->remote_ip = ((uint32_t)remote_ip[0]<<24)|
+			((uint32_t)remote_ip[1]<<16)|
+			(remote_ip[2]<<8)|
+			(remote_ip[3]<<0);
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma(); //local_ip
+
+	uint8_t remote_port_b = eth_indma();
+	uint8_t remote_port_l = eth_indma();
+	conn->remote_port = (remote_port_b<<8) | remote_port_l;
+	if (eth_indma() != local_port>>8)
+		goto rx_fail;
+	if (eth_indma() != (uint8_t)local_port)
+		goto rx_fail;
+	conn->local_port = local_port;
+	uint8_t len_b = eth_indma();
+	uint8_t len_l = eth_indma();
+	*len = ((len_b<<8)|len_l)-8;
+	eth_indma();
+	eth_indma();//checksum
+	rx_off += 20+8;
+	return true;
+	rx_fail:
+	recv_end();
+	return false;
+}
+
+void paste_restpacket(uint8_t far *buff,size_t len)
+{
+	uint16_t off=0;
+	uint16_t head=rx_buff_len - rx_off;
+	if (len > head)
+	{
+		insw(buff,head,io_dma);
+		off=head;
+		len-=head;
+		rx_off +=head;
+		read_prepare();
+	}
+	insw(&buff[off],len,io_dma);
+
 }
 
 bool dhcp_poll()
 {
 	if(start_recv())
 	{
-		uint8_t* udp_pkt;
-		uint16_t udp_len;
-		if((udp_pkt=decode_udp(68,&udp_len)))
+		udp_conn recv_conn;
+		if(process_eth(&recv_conn) == 0x0800)
 		{
-			if(udp_pkt[0] != 0x02)
-				return false;
-			if(udp_pkt[0xEC] != 0x63)
-				return false;
-			if(udp_pkt[0xED] != 0x82)
-				return false;
-			if(udp_pkt[0xEE] != 0x53)
-				return false;
-			if(udp_pkt[0xEF] != 0x63)
-				return false;
-			uint16_t off=0xF0;
-			uint8_t msg_type = 0;
-			while(!msg_type)
+			uint16_t udp_len;
+
+			if((decode_ip_udp(68,&udp_len,&recv_conn)))
 			{
-				switch(udp_pkt[off])
-				{
-				case 0xff:
+				uint8_t udp_pkt[1024];
+				paste_restpacket(udp_pkt,udp_len);
+				recv_end();
+
+				if(udp_pkt[0] != 0x02)
 					return false;
-				case 0x35:
-					msg_type=udp_pkt[off+2];
-					break;
-				default:
-					off+=2+udp_pkt[off+1];
-				}
-				if(off > udp_len)
+				if(udp_pkt[0xEC] != 0x63)
 					return false;
-			}
-			if(msg_type == 2)
-			{
-				if(!offered)
+				if(udp_pkt[0xED] != 0x82)
+					return false;
+				if(udp_pkt[0xEE] != 0x53)
+					return false;
+				if(udp_pkt[0xEF] != 0x63)
+					return false;
+				uint16_t off=0xF0;
+				uint8_t msg_type = 0;
+				while(!msg_type)
 				{
-					offered=true;
-					udp_conn conn;
-					fill_udp_conn(&conn);
-					assigned_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
-					send_dhcp_packet(3, conn.remote_ip);
+					switch(udp_pkt[off])
+					{
+					case 0xff:
+						return false;
+					case 0x35:
+						msg_type=udp_pkt[off+2];
+						break;
+					default:
+						off+=2+udp_pkt[off+1];
+					}
+					if(off > udp_len)
+						return false;
+				}
+				if(msg_type == 2)
+				{
+					if(!offered)
+					{
+						offered=true;
+						assigned_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
+						send_dhcp_packet(3, recv_conn.remote_ip);
+					}
+				}
+				if(msg_type == 5)
+				{
+					local_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
+					return true;
 				}
 			}
-			if(msg_type == 5)
-			{
-				local_ip=((uint32_t)udp_pkt[0x10]<<24)|((uint32_t)udp_pkt[0x11]<<16)|(udp_pkt[0x12]<<8)|(udp_pkt[0x13]<<0);
-				return true;
-			}
+
+		}
+		else
+		{
+			recv_end();
 		}
 	}
 	return false;
 }
 
-bool process_arp()
+void process_arp(udp_conn * conn)
 {
 
-	if (rx_pkt[12] != 0x08 || rx_pkt[13] != 0x06) // is ARP
-		return false;
-	if (rx_pkt[0x14] != 0x00 || rx_pkt[0x15] != 0x01) // is request
-		return false;
-	if (rx_pkt[0x26] != (uint8_t)(local_ip>>24)) // to us?
-		return false;
-	if (rx_pkt[0x27] != (uint8_t)(local_ip>>16)) // to us?
-		return false;
-	if (rx_pkt[0x28] != (uint8_t)(local_ip>>8)) // to us?
-		return false;
-	if (rx_pkt[0x29] != (uint8_t)(local_ip>>0)) // to us?
-		return false;
+	//if (rx_pkt[12] != 0x08 || rx_pkt[13] != 0x06) // is ARP
+	//	return false;
+	prepare_dma();
+	eth_indma();
+	eth_indma();//hw
+	eth_indma();
+	eth_indma();//proto
+	eth_indma();//hwsize
+	eth_indma();//protosize
 
+	if (eth_indma() != 0x00 || eth_indma() != 0x01) // is request
+		goto err;
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma();//smac
+	uint8_t rip[4];
+	rip[0]=eth_indma();
+	rip[1]=eth_indma();
+	rip[2]=eth_indma();
+	rip[3]=eth_indma();//sip
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma();
+	eth_indma();//tmac
+
+	if (eth_indma() != (uint8_t)(local_ip>>24)) // to us?
+		goto err;
+	if (eth_indma() != (uint8_t)(local_ip>>16)) // to us?
+		goto err;
+	if (eth_indma() != (uint8_t)(local_ip>>8)) // to us?
+		goto err;
+	if (eth_indma() != (uint8_t)(local_ip>>0)) // to us?
+		goto err;
+	recv_end();
 
 	//reply
 
@@ -580,10 +697,8 @@ bool process_arp()
 	eth_outb(ED_P0_RSAR1, buff_start>>8); // on start of memory
 	eth_outb(ED_P0_CR,ED_CR_RD1 | ED_CR_PAGE_0 | ED_CR_STA);
 
-	prepare_dma();
-
 	for(uint16_t i=0;i<6;i++)
-		eth_outdma(rx_pkt[i+6]);
+		eth_outdma(conn->remote_mac[i]);
 	for(uint16_t i=0;i<6;i++)
 		eth_outdma(mac_address[i]);
 	eth_outdma(0x08);
@@ -603,11 +718,11 @@ bool process_arp()
 	eth_outdma(local_ip>>8);
 	eth_outdma(local_ip>>0);
 	for(uint16_t i=0;i<6;i++)
-		eth_outdma(rx_pkt[i+6]);
-	eth_outdma(rx_pkt[0x1c]); //targetip
-	eth_outdma(rx_pkt[0x1d]);
-	eth_outdma(rx_pkt[0x1e]);
-	eth_outdma(rx_pkt[0x1f]);
+		eth_outdma(conn->remote_mac[i]);
+	eth_outdma(rip[0]); //targetip
+	eth_outdma(rip[1]);
+	eth_outdma(rip[2]);
+	eth_outdma(rip[3]);
 
 	while (((eth_inb(ED_P0_ISR) & ED_ISR_RDC) !=
 			ED_ISR_RDC));
@@ -618,5 +733,8 @@ bool process_arp()
 	eth_outb(ED_P0_TBCR1,0);
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_TXP | ED_CR_STA);
 
-	return true;
+	return;
+err:
+	recv_end();
+	return;
 }
