@@ -13,6 +13,6 @@ all: default
 	wasm -0 -wx -ms -fo$@ $<
 
 
-optionrom.bin: main.obj init.obj print.obj link.lnk delay_c.obj delay.obj eth.obj
+optionrom.bin: main.obj init.obj print.obj link.lnk delay_c.obj delay.obj eth.obj insw.obj
 	wlink name $@ @link.lnk
 	./checksum.py $@

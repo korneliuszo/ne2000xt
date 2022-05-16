@@ -41,14 +41,10 @@ void writemem(const uint8_t *src, uint16_t dst, size_t len)
 		delay_spin(1);
 }
 
-void insw(uint8_t far *buff,size_t len, uint16_t port);
-#pragma aux insw = \
-		"read_loop: " \
-		"in	al,dx" \
-		"stosb" \
-		"loop read_loop" \
+#pragma aux insw \
 		parm [es di] [cx] [dx] \
-		modify [al cx di];
+		modify [ax cx di bx];
+void insw(uint8_t far *buff,size_t len, uint16_t port);
 
 void readmem(uint8_t *src, uint16_t dst, size_t len)
 {
