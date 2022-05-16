@@ -43,9 +43,16 @@ static inline uint8_t eth_inb(uint16_t port)
 	eth_barrier(); \
 	outb(io_dma_local,val);} while(0)
 
-#define eth_indma() \
-	(eth_barrier(), \
-	inb(io_dma_local))
+uint8_t eth_indma_a(uint16_t ptr);
+#pragma aux eth_indma_a = \
+		"in	al,dx" \
+		parm [dx] \
+		modify exact [al] nomemory \
+		value [al];
+
+#define eth_indma() eth_indma_a(io_dma_local)
+//#define eth_indma()
+//	(uint8_t)inb(io_dma_local)
 
 extern uint16_t rx_buff_len, rx_buff2_len;
 extern uint16_t rx_off;
