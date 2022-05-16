@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+from timebudget import timebudget
+timebudget.set_quiet()  # don't show measurements as they happen
+timebudget.report_at_exit()  # Generate report when the program exits
+
 if __name__ == "__main__":
     import sys
     import argparse
