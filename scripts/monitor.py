@@ -53,4 +53,13 @@ class monitor():
         values = struct.unpack("<HHHHHHH",ret)
         d = dict(zip(keys,values))
         return regs.update(d)
+    def putmem_page_flipped(self,seg,addr,data):
+        self.msg(struct.pack("<BHHB",6,seg,addr,0)+data)
+        return
+    def putmem_flipped(self,seg,addr,data):
+        if(len(data)%2):
+            raise RuntimeError("flipped needs len % 2")
+        data[0::2], data[1::2] = data[1::2], data[0::2]
+        [self.putmem_page_flipped(seg,addr+i,data[i:i+1024]) for i in range(0, len(data), 1024)]
+        return
 

@@ -10,6 +10,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Display image')
     parser.add_argument("--ip",'-i', help='ip')
     parser.add_argument("--image",'-I', help='image')
+    parser.add_argument("--type",'-t', help='monitor type')
 
     args = parser.parse_args()
     if (not args.ip):
@@ -18,8 +19,11 @@ if __name__ == "__main__":
     if (not args.image):
         print("Provide image")
         sys.exit(1)
-        
+    if (not args.type):
+        args.type = "cga" 
+
     from cga import cga_06
+    from hga import hga
     from PIL import Image
     import monitor
     import numpy as np
@@ -28,7 +32,10 @@ if __name__ == "__main__":
     import threading
     
     i = Image.open(args.image)
-    cga = cga_06(args.ip)
+    
+    cga = {"cga":cga_06,
+            "hga": hga}[args.type](args.ip)
+
     
     i=i.resize(cga.resolution())
     w, h=cga.resolution()

@@ -2,14 +2,15 @@
 
 import monitor
 from PIL import Image
+from timebudget import timebudget
 
 class hga():
     def write_b(self,idx,val):
         self.m.outb(0x3b4,idx)
         self.m.outb(0x3b5,val)
         
-    def __init__(self,monitor):
-        self.m= monitor
+    def __init__(self,ip):
+        self.m= monitor.monitor(ip)
         self.m.outb(0x3ba,0);
         self.m.outb(0x3bf,0x01)
         self.m.outb(0x3b8,0x0A)
@@ -40,12 +41,15 @@ class hga():
             for x in range(720):
                 if i.getpixel((x,y)):
                     re[(y%4)*0x2000 +(y//4)*90+x//8]|=1<<(7-x%8)
-                    
-        self.m.putmem(0xB000,0,re)
+                
+        with timebudget("io"):
+            self.m.putmem(0xB000,0,re)
     
 if __name__ == "__main__":
     import sys
     import argparse
+    timebudget.set_quiet()  # don't show measurements as they happen
+    timebudget.report_at_exit()  # Generate report when the program exits
     parser = argparse.ArgumentParser(description='Display image')
     parser.add_argument("--ip",'-i', help='ip')
     parser.add_argument("--image",'-I', help='image')
@@ -59,7 +63,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     i = Image.open(args.image)
-    cga = hga(monitor.monitor(args.ip))
+    cga = hga(args.ip)
     
     i=i.resize(cga.resolution())
     i=i.convert("1")
