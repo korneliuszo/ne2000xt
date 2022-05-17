@@ -46,6 +46,11 @@ void writemem(const uint8_t *src, uint16_t dst, size_t len)
 		modify [ax cx di bx];
 void insw(uint8_t far *buff,size_t len, uint16_t port);
 
+#pragma aux inswf \
+		parm [es di] [cx] [dx] \
+		modify [ax cx di bx];
+void inswf(uint8_t far *buff,size_t len, uint16_t port);
+
 void readmem(uint8_t *src, uint16_t dst, size_t len)
 {
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
@@ -561,6 +566,22 @@ void paste_restpacket(uint8_t far *buff,size_t len)
 		read_prepare();
 	}
 	insw(&buff[off],len,io_dma);
+
+}
+
+void paste_restpacket_flipped(uint8_t far *buff,size_t len)
+{
+	uint16_t off=0;
+	uint16_t head=rx_buff_len - rx_off;
+	if (len > head)
+	{
+		inswf(buff,head,io_dma);
+		off=head;
+		len-=head;
+		rx_off +=head;
+		read_prepare();
+	}
+	inswf(&buff[off],len,io_dma);
 
 }
 

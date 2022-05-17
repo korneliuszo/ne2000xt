@@ -80,6 +80,7 @@ void recv_end();
 uint16_t process_eth(udp_conn * conn);
 bool decode_ip_udp(uint16_t local_port, uint16_t *len, udp_conn * conn);
 void paste_restpacket(uint8_t far *buff,size_t len);
+void paste_restpacket_flipped(uint8_t far *buff,size_t len);
 bool dhcp_poll();
 void process_arp(udp_conn * conn);
 

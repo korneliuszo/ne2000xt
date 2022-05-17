@@ -182,6 +182,25 @@ int start()
 						fin_send_udp(14);
 						break;
 					}
+					case 6: //putmem_flipped
+					{
+						__segment               seg;
+						char __based( void ) * segptr;
+						uint8_t seg_l = eth_indma();
+						uint8_t seg_h = eth_indma();
+						uint8_t ptr_l = eth_indma();
+						uint8_t ptr_h = eth_indma();
+						eth_indma();
+						rx_off+=6;
+						seg = seg_l | (seg_h<<8);
+						segptr =(char __based(void) *)( ptr_l | (ptr_h <<8));
+						len -=6;
+						paste_restpacket_flipped(seg:>segptr,len);
+						recv_end();
+						start_send_udp(&conn, 0);
+						fin_send_udp(0);
+						break;
+					}
 					default:
 						recv_end();
 						break;
