@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("--ip",'-i', help='ip')
     parser.add_argument("--image",'-I', help='image')
     parser.add_argument("--type",'-t', help='monitor type')
+    parser.add_argument("--drop",'-d',action=argparse.BooleanOptionalAction)
    
     args = parser.parse_args()
     if (not args.ip):
@@ -27,16 +28,23 @@ if __name__ == "__main__":
     from PIL import Image
     import monitor 
     import cv2
+    import time
     
     cga = {"cga":cga_06,
             "hga": hga}[args.type](args.ip)
     
     cap = cv2.VideoCapture(args.image)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
+    display_time = time.time()
 
     while True:
         ret, frame = cap.read()
         if ret == False:
             break
+        display_time+=1/fps
+        if args.drop and display_time < time.time():
+            continue
         color_coverted = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         i = Image.fromarray(color_coverted)
