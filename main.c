@@ -34,11 +34,11 @@ int start()
 	{
 		if(start_recv())
 		{
-			udp_conn conn;
+			static udp_conn conn;
 			uint16_t eth_type = process_eth(&conn);
 			if(eth_type == 0x0800)
 			{
-				uint16_t len;
+				static uint16_t len;
 				if(decode_ip_udp(5555,&len,&conn))
 				{
 					if (len == 0)
@@ -51,7 +51,7 @@ int start()
 					{
 					case 0: //ping
 					{
-						uint8_t buff[1024];
+						uint8_t buff[10];
 						rx_off+=1;
 						paste_restpacket(buff,len-1);
 						recv_end();
@@ -134,8 +134,7 @@ int start()
 					case 5: //call x86
 					{
 						uint8_t irq = eth_indma();
-						union REGS  r;
-						struct SREGS s;
+						static union REGPACK  r;
 
 						r.h.al = eth_indma();
 						r.h.ah = eth_indma();
@@ -153,16 +152,17 @@ int start()
 						r.w.si = si_l | (si_h<<8);
 						uint8_t cf_l = eth_indma();
 						uint8_t cf_h = eth_indma();
-						r.w.cflag = cf_l | (cf_h<<8);
+						r.x.flags = cf_l | (cf_h<<8);
 						uint8_t ds_l = eth_indma();
 						uint8_t ds_h = eth_indma();
-						s.ds = ds_l | (ds_h<<8);
+						r.x.ds = ds_l | (ds_h<<8);
 						uint8_t es_l = eth_indma();
 						uint8_t es_h = eth_indma();
-						s.es = es_l | (es_h<<8);
+						r.x.es = es_l | (es_h<<8);
 						recv_end();
 
-						int86x(irq,&r,&r,&s);
+						intrf( irq, &r);
+
 						start_send_udp(&conn, 14);
 						prepare_dma();
 						eth_outdma(r.h.al);
@@ -177,8 +177,8 @@ int start()
 						eth_outdma((uint8_t)(r.w.di>>8));
 						eth_outdma((uint8_t)r.w.si);
 						eth_outdma((uint8_t)(r.w.si>>8));
-						eth_outdma((uint8_t)(r.w.cflag));
-						eth_outdma((uint8_t)(r.w.cflag>>8));
+						eth_outdma((uint8_t)(r.x.flags));
+						eth_outdma((uint8_t)(r.x.flags>>8));
 						fin_send_udp(14);
 						break;
 					}

@@ -72,7 +72,7 @@ typedef struct
 	uint16_t local_port;
 } udp_conn;
 
-void start_send_udp(udp_conn *conn, uint16_t len);
+void start_send_udp(const udp_conn *conn, uint16_t len);
 void fin_send_udp(uint16_t len);
 void send_dhcp_discover();
 bool start_recv();

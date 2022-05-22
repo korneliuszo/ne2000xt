@@ -18,7 +18,7 @@ uint16_t rx_off;
 uint16_t rx_pkt_off;
 uint8_t next_pkt;
 
-void writemem(const uint8_t *src, uint16_t dst, size_t len)
+void writemem(const uint8_t far *src, uint16_t dst, size_t len)
 {
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
 	eth_outb(ED_P0_ISR, ED_ISR_RDC);
@@ -51,7 +51,7 @@ void insw(uint8_t far *buff,size_t len, uint16_t port);
 		modify [ax cx di bx];
 void inswf(uint8_t far *buff,size_t len, uint16_t port);
 
-void readmem(uint8_t *src, uint16_t dst, size_t len)
+void readmem(uint8_t far *src, uint16_t dst, size_t len)
 {
 	eth_outb(ED_P0_CR,ED_CR_RD2 | ED_CR_PAGE_0 | ED_CR_STA);
 	size_t lenr = len + (len&1);
@@ -141,12 +141,12 @@ void eth_initialize()
 	eth_outb(ED_P0_PSTART, 8192 >> ED_PAGE_SHIFT);
 	eth_outb(ED_P0_PSTOP, 16384 >> ED_PAGE_SHIFT);
 
-	const uint8_t test_pattern[32] = "THIS is A memory TEST pattern";
+	static const uint8_t test_pattern[32] = "THIS is A memory TEST pattern";
 	uint8_t test_buffer[32];
 
 	writemem(test_pattern, 8192, sizeof(test_pattern));
 	readmem(test_buffer,8192,sizeof(test_buffer));
-	if(memcmp(test_pattern,test_buffer,sizeof(test_pattern)))
+	if(_fmemcmp(test_pattern,test_buffer,sizeof(test_pattern)))
 	{
 		//NE2000?
 		eth_outb(ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
@@ -157,7 +157,7 @@ void eth_initialize()
 		eth_outb(ED_P0_PSTOP, 24576 >> ED_PAGE_SHIFT);
 		writemem(test_pattern, 16384, sizeof(test_pattern));
 		readmem(test_buffer,16384,sizeof(test_buffer));
-		if(memcmp(test_pattern,test_buffer,sizeof(test_pattern)))
+		if(_fmemcmp(test_pattern,test_buffer,sizeof(test_pattern)))
 		{
 			bios_printf(BIOS_PRINTF_DEBHALT,"Not working buffer\n");
 		}
@@ -237,7 +237,7 @@ uint8_t local_ip[4] = {0};
 
 bool first_tx = true;
 
-void start_send_udp(udp_conn *conn, uint16_t len)
+void start_send_udp(const udp_conn *conn, uint16_t len)
 {
 	uint16_t eth_len = len + 14 + 20 + 8;
 	uint16_t ip_len = len + 20 + 8;
@@ -329,7 +329,7 @@ uint8_t assigned_ip[4];
 
 void send_dhcp_packet(uint8_t type, uint8_t serverip[4])
 {
-	udp_conn conn = {
+	static const udp_conn conn = {
 			{0xff,0xff,0xff,0xff,0xff,0xff},
 			{0xff,0xff,0xff,0xff},
 			67,
@@ -589,10 +589,10 @@ bool dhcp_poll()
 {
 	if(start_recv())
 	{
-		udp_conn recv_conn;
+		static udp_conn recv_conn;
 		if(process_eth(&recv_conn) == 0x0800)
 		{
-			uint16_t udp_len;
+			static uint16_t udp_len;
 
 			if((decode_ip_udp(68,&udp_len,&recv_conn)))
 			{

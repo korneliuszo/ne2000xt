@@ -55,14 +55,7 @@ jumpram label near
 	mov	ds, ax
     assume  es:DGROUP
 	mov es, ax
-	mov     bx, 0xfFFF ; 64kB          
-    mov     ss,ax
-	shl		ax,1
-	shl		ax,1
-	shl		ax,1
-	shl		ax,1
-	sub		bx,ax
-    mov     sp,bx	
+
 
 	sti
 	cld
