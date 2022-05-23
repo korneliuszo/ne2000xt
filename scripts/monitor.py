@@ -62,4 +62,6 @@ class monitor():
         data[0::2], data[1::2] = data[1::2], data[0::2]
         [self.putmem_page_flipped(seg,addr+i,data[i:i+1024]) for i in range(0, len(data), 1024)]
         return
+    def continue_boot(self):
+        self.msgout(struct.pack("<B",7))
 

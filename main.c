@@ -201,6 +201,11 @@ int start()
 						fin_send_udp(0);
 						break;
 					}
+					case 7: // continue boot
+					{
+						recv_end();
+						return 0;
+					}
 					default:
 						recv_end();
 						break;
