@@ -1,5 +1,3 @@
-int __cdecl start();
-
 #include <i86.h>
 #include <stdint.h>
 #include "biosint.h"
@@ -7,7 +5,23 @@ int __cdecl start();
 #include "eth.h"
 #include <string.h>
 
-int start()
+typedef struct {
+	uint16_t f;
+	uint16_t es;
+	uint16_t ds;
+	uint16_t di;
+	uint16_t si;
+	uint16_t bp;
+	uint16_t bx;
+	uint16_t dx;
+	uint16_t cx;
+	uint16_t ax;
+} IRQ_DATA;
+
+int __cdecl start(uint16_t irq, IRQ_DATA far * params);
+
+
+int start(uint16_t irq, IRQ_DATA far * params)
 {
 	bios_printf(BIOS_PRINTF_ALL,"NE2000XT Monitor\n");
 
@@ -204,7 +218,37 @@ int start()
 					case 7: // continue boot
 					{
 						recv_end();
-						return 0;
+						return 1;
+					}
+					case 8:
+					{
+						recv_end();
+						start_send_udp(&conn, 22);
+						prepare_dma();
+						eth_outdma(irq);
+						eth_outdma(irq>>8);
+						eth_outdma(params->ax);
+						eth_outdma(params->ax>>8);
+						eth_outdma(params->cx);
+						eth_outdma(params->cx>>8);
+						eth_outdma(params->dx);
+						eth_outdma(params->dx>>8);
+						eth_outdma(params->bx);
+						eth_outdma(params->bx>>8);
+						eth_outdma(params->bp);
+						eth_outdma(params->bp>>8);
+						eth_outdma(params->si);
+						eth_outdma(params->si>>8);
+						eth_outdma(params->di);
+						eth_outdma(params->di>>8);
+						eth_outdma(params->ds);
+						eth_outdma(params->ds>>8);
+						eth_outdma(params->es);
+						eth_outdma(params->es>>8);
+						eth_outdma(params->f);
+						eth_outdma(params->f>>8);
+						fin_send_udp(22);
+						break;
 					}
 					default:
 						recv_end();

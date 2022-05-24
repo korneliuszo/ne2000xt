@@ -43,16 +43,13 @@ init proc near
 	push  ax
 	pushf
 	push ax
-	push cx
-	push dx
-	push bx
-	push bp
-	push si
-	push di
-	push ds
-	push es
+	mov ax, 0
+	jmp irq_entry
+init	endp
 
-	mov bp,sp
+move_to_ram proc near
+
+	push ax
 
 	mov bx, cs
 	mov ds, bx
@@ -88,21 +85,81 @@ jumpram label near
 	mov	WORD PTR ds:[019h*4], ax
 	mov	WORD PTR ds:[019h*4+2], es
 
-	mov WORD PTR ss:[bp+20],ax
-	mov WORD PTR ss:[bp+22],es
+	mov cx,DGROUP
+	mov bx, cs
+	add cx, bx
+    assume  ds:DGROUP
+	mov	ds, cx
+
+	pop si
+
+	shl si,1
+	shl si,1
+	mov	WORD PTR ds:[si+irq_captured], ax
+	mov	WORD PTR ds:[si+2+irq_captured], es
+
+	ret
+
+move_to_ram endp
+
+irq_entry proc near
+	push cx
+	push dx
+	push bx
+	push bp
+	push si
+	push di
+	push ds
+	push es
+
+	mov bp,sp
+
+	push ax
+
+	mov bx,cs
+	cmp bx, 0xa000
+	jc skip_ram
+	call move_to_ram
+public skip_ram
+
+skip_ram label near
 
    	mov ax,DGROUP
 	mov bx, cs
 	add ax, bx
     assume  ds:DGROUP
 	mov	ds, ax
+
+	pop si
+	push si
+
+	shl si,1
+	shl si,1
+
+	les	bx, ds:[si+irq_captured]
+
+	mov WORD PTR ss:[bp+20],bx
+	mov WORD PTR ss:[bp+22],es
+
     assume  es:DGROUP
 	mov es, ax
 
 	sti
 	cld
 
+	pop bx
+	push ss
+	mov ax, bp
+	sub ax, 2
+	push ax
+	push bx
+
 	call _start
+
+	add sp, 6
+
+	test ax,ax
+	jz handled
 
 	pop es
 	pop ds
@@ -114,8 +171,29 @@ jumpram label near
 	pop cx
 	pop ax
 	popf
-
 	retf
-init	endp
+handled label near
+	pop es
+	pop ds
+	pop di
+	pop si
+	pop bp
+	pop bx
+	pop dx
+	pop cx
+	pop ax
+	popf
+	add sp, 4
+	iret
+
+irq_entry	endp
 _TEXT ends
+
+_DATA  segment word public 'DATA'
+irq_captured label near
+dw 0
+dw 0
+
+_DATA ends
+
 	end

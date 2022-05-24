@@ -64,4 +64,10 @@ class monitor():
         return
     def continue_boot(self):
         self.msgout(struct.pack("<B",7))
-
+    def get_called_params(self):
+        ret=self.msg(struct.pack("<B",8))
+        keys = ("irq","ax","cx","dx","bx","bp","si","di","ds","es","fl")
+        values = struct.unpack("<HHHHHHHHHHH",ret)
+        values = [ hex(v) for v in values]
+        d = dict(zip(keys,values))
+        return d
