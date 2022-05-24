@@ -73,7 +73,7 @@ class monitor():
     def install_13h(self):
         self.msg(struct.pack("<B",9))
     def wait_for_isr(self):
-        self.s.settimeout(0)
+        self.s.settimeout(None)
         self.s.recv(1522)
         self.s.settimeout(5)
     def isr_handled(self):
@@ -84,7 +84,7 @@ class monitor():
                 regs["cx"],
                 regs["dx"],
                 regs["bx"],
-                regs["bp"]
+                regs["bp"],
                 regs["si"],
                 regs["di"],
                 regs["ds"],
