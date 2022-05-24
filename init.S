@@ -47,6 +47,33 @@ init proc near
 	jmp irq_entry
 init	endp
 
+public isr1
+isr1 proc near
+	push  ax
+	push  ax
+	pushf
+	push ax
+	mov ax, 1
+	jmp irq_entry
+isr1	endp
+
+public _install13h
+_install13h proc near
+	pushf
+	cli
+	push ds
+	mov ax, 0
+	mov ds, ax
+	les	ax, ds:[13h*4]
+	mov WORD PTR ds:[013h*4], offset _TEXT:isr1
+	mov WORD PTR ds:[013h*4+2], cs
+	pop ds
+	mov	WORD PTR ds:[0x1*4+irq_captured], ax
+	mov	WORD PTR ds:[0x1*4+2+irq_captured], es
+	popf
+	ret
+_install13h	endp
+
 move_to_ram proc near
 
 	push ax
@@ -190,6 +217,8 @@ _TEXT ends
 
 _DATA  segment word public 'DATA'
 irq_captured label near
+dw 0
+dw 0
 dw 0
 dw 0
 

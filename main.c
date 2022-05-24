@@ -25,35 +25,45 @@ typedef struct {
 
 int __cdecl start(uint16_t irq, IRQ_DATA far * params);
 
+void __cdecl install13h();
 
 int start(uint16_t irq, IRQ_DATA far * params)
 {
-	bios_printf(BIOS_PRINTF_ALL,"NE2000XT Monitor\n");
+	static udp_conn conn;
 
-	delay_init();
-
-	eth_detect();
-
-	eth_initialize();
-
-	while(1)
+	if (irq == 0)
 	{
-		send_dhcp_discover();
-		for(int i=0;i<PIT_MSC(5000);i++)
+		bios_printf(BIOS_PRINTF_ALL,"NE2000XT Monitor\n");
+
+		delay_init();
+
+		eth_detect();
+
+		eth_initialize();
+
+		while(1)
 		{
-			if(dhcp_poll())
-				goto iprecv;
-			delay_spin(1);
+			send_dhcp_discover();
+			for(int i=0;i<PIT_MSC(5000);i++)
+			{
+				if(dhcp_poll())
+					goto iprecv;
+				delay_spin(1);
+			}
 		}
-	}
-	iprecv:
-	bios_printf(BIOS_PRINTF_ALL,"IP %d.%d.%d.%d\n",
+		iprecv:
+		bios_printf(BIOS_PRINTF_ALL,"IP %d.%d.%d.%d\n",
 			local_ip[0],local_ip[1],local_ip[2],local_ip[3]);
+	}
+	else
+	{
+		start_send_udp(&conn, 0);
+		fin_send_udp(0);
+	}
 	while(1)
 	{
 		if(start_recv())
 		{
-			static udp_conn conn;
 			uint16_t eth_type = process_eth(&conn);
 			if(eth_type == 0x0800)
 			{
@@ -259,6 +269,60 @@ int start(uint16_t irq, IRQ_DATA far * params)
 						eth_outdma(params->rf);
 						eth_outdma(params->rf>>8);
 						fin_send_udp(28);
+						break;
+					}
+					case 9:
+					{
+						recv_end();
+						install13h();
+						start_send_udp(&conn, 0);
+						fin_send_udp(0);
+						break;
+					}
+					case 10:
+					{
+						recv_end();
+						return 0;
+					}
+					case 11:
+					{
+						uint8_t v_l,v_h;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->ax = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->cx = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->dx = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->bx = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->bp = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->si = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->di = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->ds = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->es = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->f = (v_h<<8) | v_l;
+						v_l = eth_indma();
+						v_h = eth_indma();
+						params->rf = (v_h<<8) | v_l;
+						recv_end();
+						start_send_udp(&conn, 0);
+						fin_send_udp(0);
 						break;
 					}
 					default:

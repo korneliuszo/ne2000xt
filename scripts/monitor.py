@@ -68,6 +68,29 @@ class monitor():
         ret=self.msg(struct.pack("<B",8))
         keys = ("irq","ax","cx","dx","bx","bp","si","di","ds","es","fl", "ip", "cs","rf")
         values = struct.unpack("<HHHHHHHHHHHHHH",ret)
-        values = [ hex(v) for v in values]
         d = dict(zip(keys,values))
         return d
+    def install_13h(self):
+        self.msg(struct.pack("<B",9))
+    def wait_for_isr(self):
+        self.s.settimeout(0)
+        self.s.recv(1522)
+        self.s.settimeout(5)
+    def isr_handled(self):
+        self.msgout(struct.pack("<B",10))
+    def set_called_params(self,regs):
+        cmd = bytes([11]) + struct.pack("<HHHHHHHHHHH",
+                regs["ax"],
+                regs["cx"],
+                regs["dx"],
+                regs["bx"],
+                regs["bp"]
+                regs["si"],
+                regs["di"],
+                regs["ds"],
+                regs["es"],
+                regs["fl"],
+                regs["rf"])
+        self.msg(cmd)
+        
+        
