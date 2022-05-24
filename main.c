@@ -6,7 +6,6 @@
 #include <string.h>
 
 typedef struct {
-	uint16_t f;
 	uint16_t es;
 	uint16_t ds;
 	uint16_t di;
@@ -16,6 +15,12 @@ typedef struct {
 	uint16_t dx;
 	uint16_t cx;
 	uint16_t ax;
+	uint16_t f;
+	uint16_t ph1;
+	uint16_t ph2;
+	uint16_t ip;
+	uint16_t cs;
+	uint16_t rf;
 } IRQ_DATA;
 
 int __cdecl start(uint16_t irq, IRQ_DATA far * params);
@@ -223,7 +228,7 @@ int start(uint16_t irq, IRQ_DATA far * params)
 					case 8:
 					{
 						recv_end();
-						start_send_udp(&conn, 22);
+						start_send_udp(&conn, 28);
 						prepare_dma();
 						eth_outdma(irq);
 						eth_outdma(irq>>8);
@@ -247,7 +252,13 @@ int start(uint16_t irq, IRQ_DATA far * params)
 						eth_outdma(params->es>>8);
 						eth_outdma(params->f);
 						eth_outdma(params->f>>8);
-						fin_send_udp(22);
+						eth_outdma(params->ip);
+						eth_outdma(params->ip>>8);
+						eth_outdma(params->cs);
+						eth_outdma(params->cs>>8);
+						eth_outdma(params->rf);
+						eth_outdma(params->rf>>8);
+						fin_send_udp(28);
 						break;
 					}
 					default:

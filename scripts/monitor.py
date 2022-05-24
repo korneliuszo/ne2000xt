@@ -66,8 +66,8 @@ class monitor():
         self.msgout(struct.pack("<B",7))
     def get_called_params(self):
         ret=self.msg(struct.pack("<B",8))
-        keys = ("irq","ax","cx","dx","bx","bp","si","di","ds","es","fl")
-        values = struct.unpack("<HHHHHHHHHHH",ret)
+        keys = ("irq","ax","cx","dx","bx","bp","si","di","ds","es","fl", "ip", "cs","rf")
+        values = struct.unpack("<HHHHHHHHHHHHHH",ret)
         values = [ hex(v) for v in values]
         d = dict(zip(keys,values))
         return d

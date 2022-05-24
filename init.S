@@ -150,7 +150,6 @@ skip_ram label near
 	pop bx
 	push ss
 	mov ax, bp
-	sub ax, 2
 	push ax
 	push bx
 
