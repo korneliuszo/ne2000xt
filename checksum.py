@@ -3,7 +3,7 @@
 import sys
 import os
 
-SIZE=16*1024
+SIZE=8*1024
 
 a=open(sys.argv[1],"rb").read()
 

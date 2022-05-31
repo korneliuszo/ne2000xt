@@ -3,7 +3,7 @@
 _TEXT  segment word public 'CODE'
 assume  cs:_TEXT
 dw 0AA55h
-db 32
+db 16
 public entry
 entry:
 	jmp short install_irq
@@ -84,14 +84,14 @@ move_to_ram proc near
 	mov es, bx
 
 	mov ax, WORD PTR  es:[0413h]
-	sub ax, 16
+	sub ax, 8
 	mov WORD PTR  es:[0413h], ax
 	mov cl, 6
 	shl ax,cl
 	mov es,ax
 	cld
 
-    mov cx, 0x2000            ; 8k WORDs in image
+    mov cx, 0x1000            ; 4k WORDs in image
     mov si, 0x0000            ; Current code Address
     mov di, 0x0000            ; New code Address
     rep movsw                 ; Copy MBR
