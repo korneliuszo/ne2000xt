@@ -54,6 +54,19 @@ int start(uint16_t irq, IRQ_DATA far * params)
 		iprecv:
 		bios_printf(BIOS_PRINTF_ALL,"IP %d.%d.%d.%d\n",
 			local_ip[0],local_ip[1],local_ip[2],local_ip[3]);
+
+		const static udp_conn new_conn = {
+				{0xff,0xff,0xff,0xff,0xff,0xff},
+				{255,255,255,255},
+				5556,
+				5556
+		};
+		start_send_udp(&new_conn, 6);
+		prepare_dma();
+		for(uint16_t i=0;i<6;i++)
+			eth_outdma(mac_address[i]);
+		fin_send_udp(6);
+
 	}
 	else
 	{
