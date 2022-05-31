@@ -79,7 +79,7 @@ class monitor():
     def isr_handled(self):
         self.msgout(struct.pack("<B",10))
     def set_called_params(self,regs):
-        cmd = bytes([11]) + struct.pack("<HHHHHHHHHHH",
+        cmd = bytes([11]) + struct.pack(">HHHHHHHHHHH",
                 regs["ax"],
                 regs["cx"],
                 regs["dx"],

@@ -50,7 +50,18 @@ uint8_t eth_indma_a(uint16_t ptr);
 		modify exact [al] nomemory \
 		value [al];
 
+uint16_t eth_indma_a_16be(uint16_t ptr);
+#pragma aux eth_indma_a_16be = \
+		"in	al,dx" \
+		"mov ah,al" \
+		"in	al,dx" \
+		parm [dx] \
+		modify exact [ax] nomemory \
+		value [ax];
+
 #define eth_indma() eth_indma_a(io_dma_local)
+#define eth_indma_16be() eth_indma_a_16be(io_dma_local)
+
 //#define eth_indma()
 //	(uint8_t)inb(io_dma_local)
 
