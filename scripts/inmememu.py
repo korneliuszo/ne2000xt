@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import int13handler
 
-class fddemu(int13handler.int13h): 
+class inmememu(int13handler.int13h): 
     def __init__(self,m,idx,image):
         super().__init__(m,idx)
         self.image = bytearray(open(image,"rb").read())
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     m=monitor.monitor(args.ip)
-    fdd=fddemu(m,0x00,args.image)
+    fdd=inmememu(m,0x00,args.image)
     m.install_13h()
     m.continue_boot()
     while True:
