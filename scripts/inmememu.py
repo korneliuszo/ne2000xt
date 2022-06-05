@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import int13handler
+import chssize
 
 class inmememu(int13handler.int13h): 
     def __init__(self,m,idx,image):
@@ -7,9 +8,7 @@ class inmememu(int13handler.int13h):
         self.image = bytearray(open(image,"rb").read())
 
     def get_chs(self):
-        if len(self.image) == 1440*1024:
-            return (80,2,18)
-        raise NotImplementedError
+        return chssize.chssize(len(self.image))
     def read(self,sector,len):
         return self.image[sector*512:(sector+len)*512]
     def write(self,sector,data):
