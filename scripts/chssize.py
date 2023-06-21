@@ -2,5 +2,7 @@
 def chssize(size):
     if size == 1440*1024:
         return (80,2,18)
-    sectors = size/(16*63)
-    return (sectors,16,63)
+    if size == 262963200:
+        return (856,10,60)
+    sectors = size//512//(255*63)
+    return (sectors,255,63)
