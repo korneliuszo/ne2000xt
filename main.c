@@ -34,7 +34,7 @@ int start(uint16_t irq, IRQ_DATA far * params)
 	bool still_resend = true;
 	if (irq == 0)
 	{
-		bios_printf(BIOS_PRINTF_ALL,"NE2000XT Monitor\n");
+		bios_printf(BIOS_PRINTF_ALL,"NE2000XT Monitor v0.8\n");
 
 		delay_init();
 
