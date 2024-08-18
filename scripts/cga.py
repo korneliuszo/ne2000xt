@@ -8,7 +8,7 @@ from timebudget import timebudget
 class cga_06():
     def __init__(self,ip):
         self.m= monitor.monitor(ip)
-        self.m2= monitor.monitor(ip)
+        self.m2= monitor.monitor(ip,0x01)
         r=self.m.emptyregs()
         r["ax"] = 0x0006
         self.m.irq(0x10,r)

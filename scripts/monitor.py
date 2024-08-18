@@ -5,15 +5,44 @@ import struct
 import copy
 
 class monitor():
-    def __init__(self,ip):
+    def __init__(self,ip,idx=0):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.s.connect((ip,5555))
-        self.s.settimeout(5)
+        self.idx = idx
+        self.ping_pong = False
+        self.msg(b'\xff')
+
+    def ping_idx(self):
+        return self.idx | (self.ping_pong<<7)
+
     def msgout(self,payload):
-        self.s.send(payload)
+        if(not self.ping_pong):
+            self.msg(b'\xff')
+        assert(self.ping_pong == True)
+        self.s.send(bytes([self.ping_idx()])+payload)
+        self.s.send(bytes([self.ping_idx()])+payload)
+        self.s.send(bytes([self.ping_idx()])+payload)
+
     def msg(self,payload):
-        self.msgout(payload)
-        return self.s.recv(1522)
+        self.s.settimeout(0.005)
+        while True:
+            self.s.sendall(bytes([self.ping_idx()])+payload)
+            try:
+                while True:
+                    msg  = self.s.recv(1522)
+                    if(msg[0] == self.ping_idx()):
+                        self.s.settimeout(0)                        
+                        while True:
+                            try:
+                                self.s.recv(1522)
+                            except BlockingIOError:
+                                break
+                        self.ping_pong ^=True
+                        return msg[1:]
+            except TimeoutError:
+                pass
+
+        
     def ping(self,data):
         return self.msg(bytes([0])+data)
     def outb(self,port,val):
@@ -74,8 +103,11 @@ class monitor():
         self.msg(struct.pack("<B",9))
     def wait_for_isr(self):
         self.s.settimeout(None)
-        self.s.recv(1522)
-        self.s.settimeout(5)
+        while True:
+            msg = self.s.recv(1522)
+            if msg[0] == 0x40:
+                break
+        self.msg(b'\xff')
     def isr_handled(self):
         self.msgout(struct.pack("<B",10))
     def set_called_params(self,regs):
