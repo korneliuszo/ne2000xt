@@ -35,7 +35,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     m=monitor.monitor(args.ip)
-    fdd=inmememu(m,args.drive,args.image)
+    images=list(args.image.split(":"))
+    fdd=inmememu(m,args.drive,images.pop(0))
+
     if(args.drive&0x80):
         data = bytearray(m.getmem(0,0x475,1))
         data[0]+=1;
@@ -44,7 +46,12 @@ if __name__ == "__main__":
     m.install_13h()
     m.continue_boot()
     while True:
-        m.wait_for_isr()
+        try:
+            m.wait_for_isr()
+        except KeyboardInterrupt:
+            fdd=inmememu(m,args.drive,images.pop(0))
+            print("Nextimage")
+            continue
         params=m.get_called_params()
         if fdd.process(params):
             continue  
