@@ -32,7 +32,7 @@ class hdd():
         r["ax"] = 0;
         r["dx"] = self.diskno
         self.m.irq(0x13,r)
-        if(r["ax"]&0xff !=0):
+        if(r["ax"]&0xff !=0 and r["ax"] != 0x01):
             print("Error")
             sys.exit(1)
 
@@ -70,6 +70,20 @@ class hdd():
             raise RuntimeError("Bad sector" + str(lba))
         return self.m.getmem(0x800,0,512)
 
+    def write_sector(self,lba,buff):
+        self.m.putmem(0x800,0,buff)
+        chs = self.lba_chs(lba)
+        r=self.m.emptyregs()
+        r["ax"] = 0x0301
+        r["cx"] = chs[2] | ((chs[0]&0x300)>>(8-6)) | ((chs[0]&0xff)<<8)
+        r["dx"] = self.diskno | (chs[1]<<8)
+        r["es"] = 0x800
+        r["bx"] = 0
+        self.m.irq(0x13,r)
+        if(r["ax"]>>8 !=0):
+            raise RuntimeError("Bad sector" + str(lba))
+        return
+
    # This is called when a client connects.
 def open(readonly):
     return hdd(ip)
@@ -84,6 +98,11 @@ def pread(h, buf, offset, flags):
         
     b=h.read_sector(offset//512)
     buf[:] = b
+
+def pwrite(h, buf, offset, flags):
+    if(len(buf)!=512):
+        raise RuntimeError("Read only in 512bytes chunks")
+    h.write_sector(offset//512, buf)
 
 def block_size(h):
     return (512,512,512)
