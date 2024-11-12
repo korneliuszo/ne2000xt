@@ -50,11 +50,15 @@ class int13h(object):
         params["rf"] &= ~0x0001
         return True
     def dasd_cmd(self,params):
-        params["ax"] = 0x0003
-        lba = self.get_size()//512
-        params["cx"] = lba>>16
-        params["dx"] = lba &0xffff
-        params["rf"] &= ~0x0001        
+        if self.idx&0x80:
+            params["ax"] = 0x0003
+            lba = self.get_size()//512
+            params["cx"] = lba>>16
+            params["dx"] = lba &0xffff
+            params["rf"] &= ~0x0001
+        else:
+            params["ax"] = 0x0001
+            params["rf"] &= ~0x0001
         return True
     def ext_check(self,params):
         params["bx"] = 0xAA55
